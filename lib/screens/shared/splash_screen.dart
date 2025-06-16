@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:aerofind/routes/app_routes.dart'; // adjust if needed
 import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -9,37 +9,67 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _planeY;
+
   @override
   void initState() {
     super.initState();
-    startSplash();
-  }
 
-  void startSplash() {
-    Timer(const Duration(seconds: 2), () {
-      // Example logic: redirect to login
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5), // slower animation
+    );
+
+    _planeY = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutExpo, // smoother and slower at the end
+    );
+
+    _controller.forward();
+
+    Timer(const Duration(seconds: 5), () {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
     });
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    const targetY = 100.0;
+
     return Scaffold(
-      backgroundColor: Colors.white, // or your theme color
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App logo or loading animation
-            Image.asset(
-              'assets/logo.png', // make sure the asset is added
-              height: 120,
-            ),
-            const SizedBox(height: 20),
-            const CircularProgressIndicator(),
-          ],
-        ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background image
+          Image.asset('assets/bg.jpg', fit: BoxFit.cover),
+
+          // Animated plane
+          AnimatedBuilder(
+            animation: _planeY,
+            builder: (context, child) {
+              final startY = screenHeight;
+              final currentY = startY - (_planeY.value * (startY - targetY));
+
+              return Positioned(
+                top: currentY,
+                left:
+                    MediaQuery.of(context).size.width / 2 -
+                    130, // center the plane (260/2)
+                child: Image.asset('assets/plane.png', height: 260),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
