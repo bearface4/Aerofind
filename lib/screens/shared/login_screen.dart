@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,8 +23,8 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 1), // Starts off-screen bottom
-      end: Offset.zero, // Slides to original position
+      begin: const Offset(0, 1),
+      end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutExpo));
 
     _controller.forward();
@@ -94,6 +95,9 @@ class _LoginScreenState extends State<LoginScreen>
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w500,
+                            color:
+                                Colors
+                                    .black, // Optional: change if background is dark
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -104,6 +108,13 @@ class _LoginScreenState extends State<LoginScreen>
                             hintText: 'Email',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF002F6C),
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
@@ -124,18 +135,23 @@ class _LoginScreenState extends State<LoginScreen>
                             onPressed: () {},
                             child: const Text(
                               'Login',
-                              style: TextStyle(fontSize: 18),
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 24),
 
                         // Register prompt
                         Center(
                           child: GestureDetector(
                             onTap: () {
-                              // Navigate to register screen
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.roleselection,
+                              ); // Navigate to RoleSelectionScreen
                             },
                             child: const Text.rich(
                               TextSpan(
