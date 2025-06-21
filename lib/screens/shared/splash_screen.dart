@@ -20,17 +20,13 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5), // slower animation
+      duration: const Duration(milliseconds: 2500), // fast animation
     );
 
-    _planeY = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutExpo, // smoother and slower at the end
-    );
-
+    _planeY = _controller;
     _controller.forward();
 
-    Timer(const Duration(seconds: 5), () {
+    Timer(const Duration(milliseconds: 2500), () {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
     });
   }
@@ -43,8 +39,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    const targetY = 100.0;
+    const targetY = -1000.0; // fly completely off the screen
 
     return Scaffold(
       body: Stack(
@@ -62,10 +59,14 @@ class _SplashScreenState extends State<SplashScreen>
 
               return Positioned(
                 top: currentY,
-                left:
-                    MediaQuery.of(context).size.width / 2 -
-                    130, // center the plane (260/2)
-                child: Image.asset('assets/plane.png', height: 260),
+                left: 0,
+                child: SizedBox(
+                  width: screenWidth,
+                  child: Image.asset(
+                    'assets/plane.png',
+                    fit: BoxFit.fill, // Make it touch both left and right
+                  ),
+                ),
               );
             },
           ),
