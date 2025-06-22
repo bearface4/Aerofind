@@ -26,7 +26,7 @@ class EmailVerificationScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  "Enter code we’ve sent to your inbox\nninageronimo@gmail.com",
+                  "Enter code we’ve sent to your inbox\nuseremail@gmail.com",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
