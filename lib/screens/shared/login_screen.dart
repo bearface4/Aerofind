@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen>
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Logo and background
+              // ────────── Logo & background ──────────
               Container(
                 width: double.infinity,
                 height: 400,
@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
 
-              // Animated card slide up
+              // ────────── Animated card ──────────
               SlideTransition(
                 position: _slideAnimation,
                 child: Transform.translate(
@@ -95,14 +95,12 @@ class _LoginScreenState extends State<LoginScreen>
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w500,
-                            color:
-                                Colors
-                                    .black, // Optional: change if background is dark
+                            color: Colors.black,
                           ),
                         ),
                         const SizedBox(height: 16),
 
-                        // Email input
+                        // ────────── Email input ──────────
                         TextField(
                           decoration: InputDecoration(
                             hintText: 'Email',
@@ -118,10 +116,9 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 24),
 
-                        // Login button
+                        // ────────── Login button → OTP ──────────
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -132,7 +129,10 @@ class _LoginScreenState extends State<LoginScreen>
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              // Navigate to the Login OTP screen
+                              Navigator.pushNamed(context, AppRoutes.loginotp);
+                            },
                             child: const Text(
                               'Login',
                               style: TextStyle(
@@ -144,14 +144,14 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 24),
 
-                        // Register prompt
+                        // ────────── Register prompt ──────────
                         Center(
                           child: GestureDetector(
                             onTap: () {
                               Navigator.pushNamed(
                                 context,
                                 AppRoutes.roleselection,
-                              ); // Navigate to RoleSelectionScreen
+                              );
                             },
                             child: const Text.rich(
                               TextSpan(

@@ -6,6 +6,7 @@ import '../screens/seller/seller_registration_screen.dart';
 import '../screens/seller/seller_registration_pending.dart';
 import '../screens/consumer/consumer_registration_screen.dart';
 import '../screens/consumer/email_verification_screen.dart';
+import '../screens/shared/login_otp_screen.dart';
 
 class AppRoutes {
   // Route name constants
@@ -16,6 +17,7 @@ class AppRoutes {
   static const String sellerregistrationpending = '/sellerregistrationpending';
   static const String consumerregistration = '/consumerregistration';
   static const String emailverification = '/emailverification';
+  static const String loginotp = '/loginotp';
 
   // Route map
   static final Map<String, WidgetBuilder> routes = {
@@ -26,5 +28,6 @@ class AppRoutes {
     sellerregistrationpending: (context) => const SellerPendingScreen(),
     consumerregistration: (context) => const ConsumerRegistrationScreen(),
     emailverification: (context) => const EmailVerificationScreen(),
+    loginotp: (context) => const LoginOtpScreen(),
   };
 }
