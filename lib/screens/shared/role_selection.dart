@@ -44,7 +44,10 @@ class RoleSelectionScreen extends StatelessWidget {
               description:
                   'Buy products from trusted sellers. Seamless browsing and simple checkout.',
               onTap: () {
-                // TODO: Navigate to consumer registration
+                Navigator.pushReplacementNamed(
+                  context,
+                  AppRoutes.consumerregistration,
+                );
               },
             ),
           ],

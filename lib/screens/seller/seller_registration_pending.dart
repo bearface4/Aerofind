@@ -15,7 +15,7 @@ class SellerPendingScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Use a working .json Lottie animation from the web
+                // working .json Lottie animation from the web
                 Lottie.network(
                   'https://lottie.host/013de9a1-6e02-42d2-8e75-6b575bdc60ab/KYbxJJpW3Z.json',
                   height: 220,
