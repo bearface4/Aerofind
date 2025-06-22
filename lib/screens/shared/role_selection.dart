@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -28,7 +29,10 @@ class RoleSelectionScreen extends StatelessWidget {
               description:
                   'Post your products to connect with buyers and track your performance in real-time.',
               onTap: () {
-                // TODO: Navigate to seller registration
+                Navigator.pushReplacementNamed(
+                  context,
+                  AppRoutes.sellerregistration,
+                );
               },
             ),
 

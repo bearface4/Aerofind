@@ -7,8 +7,10 @@ environment:
   sdk: ^3.7.0
 
 dependencies:
+  lottie: ^2.6.0
   flutter:
     sdk: flutter
+   
 
 dev_dependencies:
   flutter_test:
