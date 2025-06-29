@@ -286,25 +286,25 @@ class ConsumerHomePage extends StatelessWidget {
           children: const [
             Expanded(
               child: IconButton(
-                icon: Icon(Icons.home, color: Colors.white), // highlighted
+                icon: Icon(Icons.home, color: Colors.white, size: 30),
                 onPressed: null,
               ),
             ),
             Expanded(
               child: IconButton(
-                icon: Icon(Icons.route, color: Colors.grey), // not selected
+                icon: Icon(Icons.route, color: Colors.grey, size: 30),
                 onPressed: null,
               ),
             ),
             Expanded(
               child: IconButton(
-                icon: Icon(Icons.favorite, color: Colors.grey), // not selected
+                icon: Icon(Icons.favorite, color: Colors.grey, size: 30),
                 onPressed: null,
               ),
             ),
             Expanded(
               child: IconButton(
-                icon: Icon(Icons.person, color: Colors.grey), // not selected
+                icon: Icon(Icons.person, color: Colors.grey, size: 30),
                 onPressed: null,
               ),
             ),
