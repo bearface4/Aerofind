@@ -130,8 +130,11 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ),
                             onPressed: () {
-                              // Navigate to the Login OTP screen
-                              Navigator.pushNamed(context, AppRoutes.consumerhome);
+                              // Navigate to the consumer home screen
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.consumerhome,
+                              );
                             },
                             child: const Text(
                               'Login',
