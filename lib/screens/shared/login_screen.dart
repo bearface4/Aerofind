@@ -133,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen>
                               // Navigate to the consumer home screen
                               Navigator.pushNamed(
                                 context,
-                                AppRoutes.consumerhome,
+                                AppRoutes.consumermain,
                               );
                             },
                             child: const Text(

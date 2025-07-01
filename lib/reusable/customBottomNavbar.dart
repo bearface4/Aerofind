@@ -20,25 +20,13 @@ class CustomBottomNavBar extends StatelessWidget {
       unselectedItemColor: Colors.white70,
       backgroundColor: const Color(0xff002366),
       elevation: 8,
-      showSelectedLabels: false, // 🔥 Hide text
-      showUnselectedLabels: false, // 🔥 Hide text
+      showSelectedLabels: false,
+      showUnselectedLabels: false,
       items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: '', // hidden
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.route),
-          label: '', // hidden
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.favorite),
-          label: '', // hidden
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: '', // hidden
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.route), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.favorite), label: ''),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
       ],
     );
   }

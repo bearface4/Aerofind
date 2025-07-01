@@ -9,6 +9,10 @@ import '../screens/consumer/email_verification_screen.dart';
 import '../screens/shared/login_otp_screen.dart';
 import '../screens/consumer/consumer_home_page.dart';
 import '../screens/seller/seller_home_page.dart';
+import '../screens/consumer/consumer_favorite_page.dart';
+import '../screens/consumer/consumer_track_orders.dart';
+import '../screens/consumer/consumer_profile_page.dart';
+import '../screens/consumer/consumer_main_page.dart';
 
 
 class AppRoutes {
@@ -23,6 +27,14 @@ class AppRoutes {
   static const String loginotp = '/loginotp';
   static const String consumerhome = '/consumerhome';
   static const String sellerhome = '/sellerhome';
+  static const String consumerfavorites = '/consumerfavorites';
+  static const String consumertrack = '/consumertrack';
+  static const String consumerprofile = '/consumerprofile';
+  static const String consumermain = '/consumermain';
+
+  
+
+
 
 
 
@@ -38,5 +50,11 @@ class AppRoutes {
     loginotp: (context) => const LoginOtpScreen(),
     consumerhome: (context) => const ConsumerHomePage(),
     sellerhome: (context) => const SellerHomePage(),
+    consumerfavorites: (context) => const ConsumerFavoritePage(),
+    consumertrack: (context) => const ConsumerTrackOrdersPage(),
+    consumerprofile: (context) => const ConsumerProfilePage(),
+    consumermain: (context) => const ConsumerMainPage(),
+
+
   };
 }
