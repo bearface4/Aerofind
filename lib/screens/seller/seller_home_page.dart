@@ -34,7 +34,7 @@ class SellerHomePage extends StatelessWidget {
                   children: [
                     Text(
                       'AEROFIND',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -110,7 +110,7 @@ class SellerHomePage extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     _topProductCard(
-                      imageAsset: 'assets/creamy_pepper_beef.jpg',
+                      imageAsset: 'assets/creamybeef.jpg',
                       name: 'Creamy Pepper Beef',
                       rating: 4.9,
                     ),
@@ -143,13 +143,13 @@ class SellerHomePage extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               _orderTile(
-                imageAsset: 'assets/porkchop.jpg',
+                imageAsset: 'assets/porkchop.webp',
                 items: '2x Porkchop',
                 note: 'No gravy please, thank you.',
                 status: 'Order Placed',
               ),
               _orderTile(
-                imageAsset: 'assets/burger_steak.jpg',
+                imageAsset: 'assets/burgersteak.jpg',
                 items: '1x Burger steak\n1x Chicken Wings',
                 note: 'none.',
                 status: 'Delivering Order',
