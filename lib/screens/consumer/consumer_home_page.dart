@@ -86,6 +86,10 @@ class ConsumerHomePage extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: const BorderSide(color: Color(0xFF002363), width: 2),
+                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20),
               ),
             ),
