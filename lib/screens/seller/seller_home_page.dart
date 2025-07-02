@@ -6,8 +6,6 @@ class SellerHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       backgroundColor: const Color(0xfff8f8f8),
       body: SafeArea(
@@ -25,10 +23,7 @@ class SellerHomePage extends StatelessWidget {
                     bottomRight: Radius.circular(40),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 32,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -83,25 +78,24 @@ class SellerHomePage extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // Top performing products
+              // Top Performing Products Title
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   'Top performing product/s',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: Colors.grey,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                height: 150,
-                width: screenWidth,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+
+              // Product Cards Centered Horizontally
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _topProductCard(
                       imageAsset: 'assets/chickenwings.jpg',
@@ -109,16 +103,26 @@ class SellerHomePage extends StatelessWidget {
                       rating: 4.9,
                     ),
                     const SizedBox(width: 12),
+                    Container(
+                      height: 110,
+                      width: 1,
+                      color: Colors.grey.shade300,
+                    ),
+                    const SizedBox(width: 12),
                     _topProductCard(
                       imageAsset: 'assets/creamybeef.jpg',
-                      name: 'Creamy Pepper Beef',
+                      name: 'Creamy Pepper Beef Bowl',
                       rating: 4.9,
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 15),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Divider(color: Colors.grey),
+              ),
 
               // Orders
               Padding(
@@ -128,15 +132,20 @@ class SellerHomePage extends StatelessWidget {
                   children: [
                     Text(
                       'Orders',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.inter(
                         fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: Colors.grey,
                       ),
                     ),
                     TextButton(
                       onPressed: () {},
-                      child: const Text("View More →"),
+                      child: const Text(
+                        "View More →",
+                        style: TextStyle(
+                          color: Color(0xff002366),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -155,15 +164,29 @@ class SellerHomePage extends StatelessWidget {
                 status: 'Delivering Order',
               ),
 
-              const SizedBox(height: 20),
-
-              // Stocks
+              const SizedBox(height: 24),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Divider(color: Colors.grey),
+              ),
+
+              // Stocks
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   'Stocks',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              _stockTile(
+                imageAsset: 'assets/burgersteak.jpg',
+                name: 'Burger Steak',
+                stock: 5,
               ),
 
               const SizedBox(height: 40),
@@ -172,7 +195,6 @@ class SellerHomePage extends StatelessWidget {
         ),
       ),
 
-      // Bottom Nav
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         selectedItemColor: Colors.white,
@@ -193,45 +215,63 @@ class SellerHomePage extends StatelessWidget {
     required String name,
     required double rating,
   }) {
-    return Container(
-      width: 120,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)],
-      ),
+    return SizedBox(
+      width: 100,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Image.asset(
-              imageAsset,
-              height: 80,
-              width: 120,
-              fit: BoxFit.cover,
-            ),
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  imageAsset,
+                  height: 100,
+                  width: 100,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star, size: 14, color: Colors.orange),
+                      const SizedBox(width: 2),
+                      Text(
+                        rating.toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(6),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.star, size: 16, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toString(),
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-                Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ],
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 36,
+            child: Text(
+              name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
             ),
           ),
         ],
@@ -268,25 +308,81 @@ class SellerHomePage extends StatelessWidget {
                   items,
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
-                Text(
-                  'Note: $note',
-                  style: const TextStyle(color: Colors.black54),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Note: $note',
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                    ),
+                    Text(
+                      status,
+                      style: const TextStyle(
+                        color: Color(0xff002366),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              status,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color:
-                    status == 'Delivering Order' ? Colors.blue : Colors.green,
-                fontWeight: FontWeight.w500,
-              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stockTile({
+    required String imageAsset,
+    required String name,
+    required int stock,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(
+              imageAsset,
+              height: 60,
+              width: 60,
+              fit: BoxFit.cover,
             ),
           ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 4),
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                  children: [
+                    const TextSpan(text: 'Stocks: '),
+                    TextSpan(
+                      text: stock.toString(),
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          )
         ],
       ),
     );
