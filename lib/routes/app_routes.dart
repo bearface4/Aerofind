@@ -13,6 +13,11 @@ import '../screens/consumer/consumer_favorite_page.dart';
 import '../screens/consumer/consumer_track_orders.dart';
 import '../screens/consumer/consumer_profile_page.dart';
 import '../screens/consumer/consumer_main_page.dart';
+import '../screens/seller/seller_order_page.dart';
+import '../screens/seller/seller_inventory.dart';
+import '../screens/seller/seller_profile.dart';
+import '../screens/seller/seller_main_page.dart';
+
 
 
 class AppRoutes {
@@ -26,15 +31,15 @@ class AppRoutes {
   static const String emailverification = '/emailverification';
   static const String loginotp = '/loginotp';
   static const String consumerhome = '/consumerhome';
-  static const String sellerhome = '/sellerhome';
   static const String consumerfavorites = '/consumerfavorites';
   static const String consumertrack = '/consumertrack';
   static const String consumerprofile = '/consumerprofile';
   static const String consumermain = '/consumermain';
-
-  
-
-
+  static const String sellerhome = '/sellerhome';
+  static const String sellerorders = '/sellerorders';
+  static const String sellerinventory = '/sellerinventory';
+  static const String sellerprofile = '/sellerprofile';
+    static const String sellermain = '/sellermain';
 
 
 
@@ -49,12 +54,15 @@ class AppRoutes {
     emailverification: (context) => const EmailVerificationScreen(),
     loginotp: (context) => const LoginOtpScreen(),
     consumerhome: (context) => const ConsumerHomePage(),
-    sellerhome: (context) => const SellerHomePage(),
     consumerfavorites: (context) => const ConsumerFavoritePage(),
     consumertrack: (context) => const ConsumerTrackOrdersPage(),
     consumerprofile: (context) => const ConsumerProfilePage(),
     consumermain: (context) => const ConsumerMainPage(),
-
-
+    sellerhome: (context) => const SellerHomePage(),
+    sellerorders: (context) => const SellerOrdersPage(),
+    sellerinventory: (context) => const SellerInventoryPage(),
+    sellerprofile: (context) => const SellerProfilePage(),
+    sellermain: (context) => const SellerMainPage(),
+    
   };
 }
