@@ -188,7 +188,6 @@ class SellerHomePage extends StatelessWidget {
                 name: 'Burger Steak',
                 stock: 5,
               ),
-
               const SizedBox(height: 40),
             ],
           ),
