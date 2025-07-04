@@ -23,7 +23,10 @@ class SellerHomePage extends StatelessWidget {
                     bottomRight: Radius.circular(40),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -83,10 +86,7 @@ class SellerHomePage extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
                   'Top performing product/s',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: GoogleFonts.inter(fontSize: 16, color: Colors.grey),
                 ),
               ),
               const SizedBox(height: 12),
@@ -194,19 +194,6 @@ class SellerHomePage extends StatelessWidget {
           ),
         ),
       ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        backgroundColor: const Color(0xff002366),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.inventory_2), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
-        ],
-      ),
     );
   }
 
@@ -236,7 +223,10 @@ class SellerHomePage extends StatelessWidget {
                 bottom: 8,
                 right: 8,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -382,7 +372,7 @@ class SellerHomePage extends StatelessWidget {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
