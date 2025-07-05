@@ -15,11 +15,11 @@ class SellerMainPage extends StatefulWidget {
 class _SellerMainPageState extends State<SellerMainPage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = const [
-    SellerHomePage(),
-    SellerOrdersPage(),
+  final List<Widget> _pages = [
+    const SellerHomePage(),
+    const SellerOrdersPage(),
     SellerInventoryPage(),
-    SellerProfilePage(),
+    const SellerProfilePage(),
   ];
 
   void _onNavTap(int index) {
@@ -31,10 +31,7 @@ class _SellerMainPageState extends State<SellerMainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: SellerBottomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onNavTap,

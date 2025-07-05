@@ -18,8 +18,6 @@ import '../screens/seller/seller_inventory.dart';
 import '../screens/seller/seller_profile.dart';
 import '../screens/seller/seller_main_page.dart';
 
-
-
 class AppRoutes {
   // Route name constants
   static const String splash = '/';
@@ -39,9 +37,7 @@ class AppRoutes {
   static const String sellerorders = '/sellerorders';
   static const String sellerinventory = '/sellerinventory';
   static const String sellerprofile = '/sellerprofile';
-    static const String sellermain = '/sellermain';
-
-
+  static const String sellermain = '/sellermain';
 
   // Route map
   static final Map<String, WidgetBuilder> routes = {
@@ -60,9 +56,8 @@ class AppRoutes {
     consumermain: (context) => const ConsumerMainPage(),
     sellerhome: (context) => const SellerHomePage(),
     sellerorders: (context) => const SellerOrdersPage(),
-    sellerinventory: (context) => const SellerInventoryPage(),
+    sellerinventory: (context) => SellerInventoryPage(),
     sellerprofile: (context) => const SellerProfilePage(),
     sellermain: (context) => const SellerMainPage(),
-    
   };
 }
