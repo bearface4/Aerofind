@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class SellerInventoryPage extends StatelessWidget {
   SellerInventoryPage({super.key});
@@ -66,6 +67,7 @@ class SellerInventoryPage extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         // Navigate to add new product page
+                        Navigator.pushNamed(context, AppRoutes.selleradd);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff002366),

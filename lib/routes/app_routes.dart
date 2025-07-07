@@ -17,6 +17,7 @@ import '../screens/seller/seller_order_page.dart';
 import '../screens/seller/seller_inventory.dart';
 import '../screens/seller/seller_profile.dart';
 import '../screens/seller/seller_main_page.dart';
+import '../screens/seller/seller_add_new.dart';
 
 class AppRoutes {
   // Route name constants
@@ -38,6 +39,7 @@ class AppRoutes {
   static const String sellerinventory = '/sellerinventory';
   static const String sellerprofile = '/sellerprofile';
   static const String sellermain = '/sellermain';
+  static const String selleradd = '/selleradd';
 
   // Route map
   static final Map<String, WidgetBuilder> routes = {
@@ -59,5 +61,6 @@ class AppRoutes {
     sellerinventory: (context) => SellerInventoryPage(),
     sellerprofile: (context) => const SellerProfilePage(),
     sellermain: (context) => const SellerMainPage(),
+    selleradd: (context) => const SellerAddProductPage(),
   };
 }
