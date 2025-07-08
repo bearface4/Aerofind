@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
-class ConsumerHomePage extends StatelessWidget {
+class ConsumerHomePage extends StatefulWidget {
   const ConsumerHomePage({super.key});
+
+  @override
+  State<ConsumerHomePage> createState() => _ConsumerHomePageState();
+}
+
+class _ConsumerHomePageState extends State<ConsumerHomePage> {
+  RangeValues _currentRange = const RangeValues(0, 5000);
 
   final List<Map<String, String>> categories = const [
     {'title': 'Snacks', 'image': 'assets/snack.png'},
@@ -88,14 +95,20 @@ class ConsumerHomePage extends StatelessWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
-                  borderSide: const BorderSide(color: Color(0xFF002363), width: 2),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF002363),
+                    width: 2,
+                  ),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          const Icon(Icons.tune, color: Colors.black),
+          GestureDetector(
+            onTap: _showFilterModal,
+            child: const Icon(Icons.tune, color: Colors.black),
+          ),
         ],
       ),
     );
@@ -114,31 +127,32 @@ class ConsumerHomePage extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: categories.map((cat) {
-              return Column(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF002363),
-                      shape: BoxShape.circle,
-                    ),
-                    child: ClipOval(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Image.asset(
-                          cat['image']!,
-                          fit: BoxFit.contain,
+            children:
+                categories.map((cat) {
+                  return Column(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF002363),
+                          shape: BoxShape.circle,
+                        ),
+                        child: ClipOval(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Image.asset(
+                              cat['image']!,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(cat['title']!, style: const TextStyle(fontSize: 14)),
-                ],
-              );
-            }).toList(),
+                      const SizedBox(height: 5),
+                      Text(cat['title']!, style: const TextStyle(fontSize: 14)),
+                    ],
+                  );
+                }).toList(),
           ),
         ],
       ),
@@ -154,77 +168,81 @@ class ConsumerHomePage extends StatelessWidget {
       child: Wrap(
         spacing: 16,
         runSpacing: 16,
-        children: products.map((product) {
-          return SizedBox(
-            width: cardWidth,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    product['image'],
-                    height: 180,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(product['title'], style: const TextStyle(fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(
-                  '₱${product['price']}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF002363),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
+        children:
+            products.map((product) {
+              return SizedBox(
+                width: cardWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF002363),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        child: const Text(
-                          "Buy Now",
-                          style: TextStyle(color: Colors.white),
-                        ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        product['image'],
+                        height: 180,
+                        fit: BoxFit.cover,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF002363),
-                          width: 2,
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      product['title'],
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '₱${product['price']}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF002363),
                       ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.add_shopping_cart,
-                          size: 16,
-                          color: Color(0xFF002363),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF002363),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              "Buy Now",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
                         ),
-                        onPressed: () {},
-                        padding: EdgeInsets.zero,
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF002363),
+                              width: 2,
+                            ),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.add_shopping_cart,
+                              size: 16,
+                              color: Color(0xFF002363),
+                            ),
+                            onPressed: () {},
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          );
-        }).toList(),
+              );
+            }).toList(),
       ),
     );
   }
@@ -247,7 +265,10 @@ class ConsumerHomePage extends StatelessWidget {
               children: const [
                 Icon(Icons.shopping_cart, color: Colors.white),
                 SizedBox(height: 4),
-                Text("My Cart", style: TextStyle(fontSize: 10, color: Colors.white)),
+                Text(
+                  "My Cart",
+                  style: TextStyle(fontSize: 10, color: Colors.white),
+                ),
               ],
             ),
           ),
@@ -257,11 +278,198 @@ class ConsumerHomePage extends StatelessWidget {
             child: CircleAvatar(
               radius: 8,
               backgroundColor: Colors.red,
-              child: Text('0', style: TextStyle(fontSize: 10, color: Colors.white)),
+              child: Text(
+                '0',
+                style: TextStyle(fontSize: 10, color: Colors.white),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(50),
+          topRight: Radius.circular(0),
+        ),
+      ),
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, setModalState) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(
+                        right: 300, // move left by 12 pixels
+                      ), // move right by 12 pixels
+                      child: Text(
+                        'Filter',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Categories',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children:
+                          [
+                            'Snacks',
+                            'Beverages',
+                            'Printing',
+                            'Clothing',
+                            'Health',
+                            'Beauty',
+                            'School Supplies',
+                            'General',
+                          ].map((category) {
+                            final isSelected = category == 'School Supplies';
+                            return ChoiceChip(
+                              label: Text(category),
+                              selected: isSelected,
+                              showCheckmark: false,
+                              onSelected: (_) {},
+                              selectedColor: const Color(0xFF002363),
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.white : Colors.black,
+                              ),
+                            );
+                          }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Price range',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Text("₱0", style: TextStyle(fontSize: 14)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Slider(
+                            value: _currentRange.end,
+                            min: 0,
+                            max: 10000,
+                            divisions: 100,
+                            label: '₱${_currentRange.end.toInt()}',
+                            activeColor: const Color(0xFF002363),
+                            inactiveColor: Colors.grey[300],
+                            onChanged: (value) {
+                              setModalState(() {
+                                _currentRange = RangeValues(0, value);
+                              });
+                              setState(() {
+                                _currentRange = RangeValues(0, value);
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text("₱10,000", style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                    Text(
+                      '₱${_currentRange.end.toInt()}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Availability',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF002363),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              "Order now",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {},
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.black),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              "Pre-order",
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF002363),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text(
+                          'Save',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
     );
   }
 }
