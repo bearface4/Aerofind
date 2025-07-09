@@ -313,7 +313,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                   children: [
                     const Padding(
                       padding: EdgeInsets.only(
-                        right: 300, // move left by 12 pixels
+                        right: 250, // move left by 12 pixels
                       ), // move right by 12 pixels
                       child: Text(
                         'Filter',
