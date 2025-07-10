@@ -311,7 +311,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 radius: 8,
                 backgroundColor: Colors.red,
                 child: Text(
-                  '0',
+                  '2',
                   style: TextStyle(fontSize: 10, color: Colors.white),
                 ),
               ),
