@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geocoding/geocoding.dart'; 
+import 'package:geocoding/geocoding.dart' as geocoding;  // Explicitly alias geocoding
+import 'package:location/location.dart' as loc;  // Alias for the location package
 
 class ConsumerDeliveryAddress extends StatefulWidget {
   const ConsumerDeliveryAddress({super.key});
@@ -14,20 +15,24 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
   LatLng _currentLocation = const LatLng(14.5547, 121.0194); // Default to Manila
   final Set<Marker> _markers = {}; // For holding markers
   final TextEditingController _addressController = TextEditingController();
+  final loc.Location _location = loc.Location(); // Create an instance of the Location package
 
   // Function to get latitude and longitude from the address
   Future<void> _getLatLngFromAddress(String address) async {
     try {
-      // Convert address to lat/lng using Geocoding API
-      List<Location> locations = await locationFromAddress(address);
+      // Convert address to lat/lng using Geocoding API (using geocoding.Location)
+      List<geocoding.Location> locations = await geocoding.locationFromAddress(address); // Using geocoding's Location
       if (locations.isNotEmpty) {
         setState(() {
           _currentLocation = LatLng(locations.first.latitude, locations.first.longitude);
-          // Add a marker at the location
+          // Remove old marker if exists
+          _markers.clear();
+          // Add a custom pin marker at the new location
           _markers.add(Marker(
             markerId: MarkerId('address_marker'),
             position: _currentLocation,
             infoWindow: InfoWindow(title: 'Selected Address'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Custom Pin
           ));
         });
 
@@ -37,6 +42,55 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
     } catch (e) {
       print("Error: $e");
     }
+  }
+
+  // Function to get the current location of the user
+  Future<void> _getCurrentLocation() async {
+    try {
+      // Check if the app has permission to access the location
+      var permissionStatus = await _location.requestPermission();
+      if (permissionStatus == loc.PermissionStatus.granted) {
+        // Get current location
+        var currentLocation = await _location.getLocation();
+
+        setState(() {
+          _currentLocation = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+          // Remove old marker if exists
+          _markers.clear();
+          // Add a custom pin marker for current location
+          _markers.add(Marker(
+            markerId: MarkerId('current_location_marker'),
+            position: _currentLocation,
+            infoWindow: InfoWindow(title: 'Your Current Location'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), // Custom Pin
+          ));
+        });
+
+        // Move camera to the current location
+        _mapController.animateCamera(CameraUpdate.newLatLng(_currentLocation));
+      } else {
+        // Handle location permission denied
+        print("Permission Denied");
+      }
+    } catch (e) {
+      print("Error: $e");
+    }
+  }
+
+  // Function to handle tap on the map to drop a pin
+  void _onMapTapped(LatLng tappedPoint) {
+    setState(() {
+      _currentLocation = tappedPoint;
+      // Clear previous marker and add a new one at the tapped location
+      _markers.clear();
+      _markers.add(Marker(
+        markerId: MarkerId('tapped_location_marker'),
+        position: _currentLocation,
+        infoWindow: InfoWindow(title: 'Tapped Location'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Custom Pin
+      ));
+    });
+    _mapController.animateCamera(CameraUpdate.newLatLng(_currentLocation));
   }
 
   @override
@@ -62,37 +116,45 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
               _mapController = controller;
             },
             markers: _markers, // Display the markers
+            onTap: _onMapTapped, // Handle map taps to drop a pin
           ),
-          Column(
-            children: [
-              // Text field for address input
-              Container(
-                margin: const EdgeInsets.all(16),
-                child: TextField(
-                  controller: _addressController,
-                  decoration: InputDecoration(
-                    labelText: 'Enter your address',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: () {
-                        _getLatLngFromAddress(_addressController.text);
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: 180, // Adjusted height for the container
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
                 ),
               ),
-              // Button to use current location
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Implement logic to get the current location here
-                    },
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Text field for address input
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: TextField(
+                      controller: _addressController,
+                      decoration: InputDecoration(
+                        labelText: 'Enter your address',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: () {
+                            _getLatLngFromAddress(_addressController.text);
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Button to use current location
+                  ElevatedButton(
+                    onPressed: _getCurrentLocation,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF001F5B),
                       shape: RoundedRectangleBorder(
@@ -101,9 +163,9 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                     ),
                     child: const Text('Use my current location'),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
