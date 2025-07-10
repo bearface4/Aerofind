@@ -15,6 +15,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     {'title': 'Beverages', 'image': 'assets/bev.png'},
     {'title': 'Printing', 'image': 'assets/printer.png'},
     {'title': 'Clothing', 'image': 'assets/clothing.png'},
+    {'title': 'Health', 'image': 'assets/health.png'},
+    {'title': 'Beauty', 'image': 'assets/beauty.png'},
+    {'title': 'School Supplies', 'image': 'assets/school.png'},
+    {'title': 'General', 'image': 'assets/general.png'},
   ];
 
   final List<Map<String, dynamic>> products = const [
@@ -125,11 +129,13 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children:
-                categories.map((cat) {
-                  return Column(
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: categories.map((cat) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Column(
                     children: [
                       Container(
                         width: 60,
@@ -151,8 +157,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       const SizedBox(height: 5),
                       Text(cat['title']!, style: const TextStyle(fontSize: 14)),
                     ],
-                  );
-                }).toList(),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
@@ -168,81 +176,80 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       child: Wrap(
         spacing: 16,
         runSpacing: 16,
-        children:
-            products.map((product) {
-              return SizedBox(
-                width: cardWidth,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        children: products.map((product) {
+          return SizedBox(
+            width: cardWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    product['image'],
+                    height: 180,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  product['title'],
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '₱${product['price']}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF002363),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        product['image'],
-                        height: 180,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product['title'],
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '₱${product['price']}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF002363),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF002363),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                            child: const Text(
-                              "Buy Now",
-                              style: TextStyle(color: Colors.white),
-                            ),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF002363),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFF002363),
-                              width: 2,
-                            ),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.add_shopping_cart,
-                              size: 16,
-                              color: Color(0xFF002363),
-                            ),
-                            onPressed: () {},
-                            padding: EdgeInsets.zero,
-                          ),
+                        child: const Text(
+                          "Buy Now",
+                          style: TextStyle(color: Colors.white),
                         ),
-                      ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF002363),
+                          width: 2,
+                        ),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.add_shopping_cart,
+                          size: 16,
+                          color: Color(0xFF002363),
+                        ),
+                        onPressed: () {},
+                        padding: EdgeInsets.zero,
+                      ),
                     ),
                   ],
                 ),
-              );
-            }).toList(),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -300,176 +307,168 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           topRight: Radius.circular(0),
         ),
       ),
-      builder:
-          (context) => StatefulBuilder(
-            builder: (context, setModalState) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 24,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(right: 280),
+                  child: Text(
+                    'Filter',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Categories',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(
-                        right: 250, // move left by 250 pixels
-                      ), // move right by 12 pixels
-                      child: Text(
-                        'Filter',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    'Snacks',
+                    'Beverages',
+                    'Printing',
+                    'Clothing',
+                    'Health',
+                    'Beauty',
+                    'School Supplies',
+                    'General',
+                  ].map((category) {
+                    final isSelected = category == 'School Supplies';
+                    return ChoiceChip(
+                      label: Text(category),
+                      selected: isSelected,
+                      showCheckmark: false,
+                      onSelected: (_) {},
+                      selectedColor: const Color(0xFF002363),
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Price range',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Text("₱0", style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Slider(
+                        value: _currentRange.end,
+                        min: 0,
+                        max: 10000,
+                        divisions: 100,
+                        label: '₱${_currentRange.end.toInt()}',
+                        activeColor: const Color(0xFF002363),
+                        inactiveColor: Colors.grey[300],
+                        onChanged: (value) {
+                          setModalState(() {
+                            _currentRange = RangeValues(0, value);
+                          });
+                          setState(() {
+                            _currentRange = RangeValues(0, value);
+                          });
+                        },
                       ),
                     ),
-
-                    const SizedBox(height: 20),
-
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Categories',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children:
-                          [
-                            'Snacks',
-                            'Beverages',
-                            'Printing',
-                            'Clothing',
-                            'Health',
-                            'Beauty',
-                            'School Supplies',
-                            'General',
-                          ].map((category) {
-                            final isSelected = category == 'School Supplies';
-                            return ChoiceChip(
-                              label: Text(category),
-                              selected: isSelected,
-                              showCheckmark: false,
-                              onSelected: (_) {},
-                              selectedColor: const Color(0xFF002363),
-                              labelStyle: TextStyle(
-                                color: isSelected ? Colors.white : Colors.black,
-                              ),
-                            );
-                          }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Price range',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        const Text("₱0", style: TextStyle(fontSize: 14)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Slider(
-                            value: _currentRange.end,
-                            min: 0,
-                            max: 10000,
-                            divisions: 100,
-                            label: '₱${_currentRange.end.toInt()}',
-                            activeColor: const Color(0xFF002363),
-                            inactiveColor: Colors.grey[300],
-                            onChanged: (value) {
-                              setModalState(() {
-                                _currentRange = RangeValues(0, value);
-                              });
-                              setState(() {
-                                _currentRange = RangeValues(0, value);
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text("₱10,000", style: TextStyle(fontSize: 14)),
-                      ],
-                    ),
-                    Text(
-                      '₱${_currentRange.end.toInt()}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 20),
-
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Availability',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF002363),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              "Order now",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {},
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.black),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              "Pre-order",
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
+                    const SizedBox(width: 10),
+                    const Text("₱10,000", style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+                Text(
+                  '₱${_currentRange.end.toInt()}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Availability',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
                       child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {},
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF002363),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(30),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         child: const Text(
-                          'Save',
+                          "Order now",
                           style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.black),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text(
+                          "Pre-order",
+                          style: TextStyle(color: Colors.black),
                         ),
                       ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF002363),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
