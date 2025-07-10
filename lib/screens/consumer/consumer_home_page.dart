@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerHomePage extends StatefulWidget {
   const ConsumerHomePage({super.key});
@@ -32,8 +33,17 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       'price': 200,
       'image': 'assets/hbv.jpg',
     },
-    {'title': 'Hard Copy Paper', 'price': 210, 'image': 'assets/hardcopy.jpg'},
-    {'title': 'Chicken Meal', 'price': 144, 'image': 'assets/chickenwings.jpg'},
+    {
+      'title': 'Hard Copy Paper',
+      'price': 210,
+      'image': 'assets/hardcopy.jpg',
+    },
+    {
+      'title': 'Chicken Meal',
+      'price': 144,
+      'image': 'assets/chickenwings.jpg',
+      'route': AppRoutes.consumeritem, // Mark it with route
+    },
   ];
 
   @override
@@ -177,7 +187,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         spacing: 16,
         runSpacing: 16,
         children: products.map((product) {
-          return SizedBox(
+          Widget productCard = SizedBox(
             width: cardWidth,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,6 +259,18 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
               ],
             ),
           );
+
+          // If product has a route, make it clickable
+          if (product.containsKey('route')) {
+            return GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, product['route']);
+              },
+              child: productCard,
+            );
+          }
+
+          return productCard;
         }).toList(),
       ),
     );
@@ -310,10 +332,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -339,19 +358,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
-                  children: [
-                    'Snacks',
-                    'Beverages',
-                    'Printing',
-                    'Clothing',
-                    'Health',
-                    'Beauty',
-                    'School Supplies',
-                    'General',
-                  ].map((category) {
-                    final isSelected = category == 'School Supplies';
+                  children: categories.map((category) {
+                    final isSelected = category['title'] == 'School Supplies';
                     return ChoiceChip(
-                      label: Text(category),
+                      label: Text(category['title']!),
                       selected: isSelected,
                       showCheckmark: false,
                       onSelected: (_) {},
