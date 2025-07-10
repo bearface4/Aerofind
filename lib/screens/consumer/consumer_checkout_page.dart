@@ -45,6 +45,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
             ],
           ),
         ),
+        titleSpacing: -5,
       ),
       body: Stack(
         children: [

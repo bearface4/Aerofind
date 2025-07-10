@@ -20,41 +20,39 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 0,
-        title: const Padding(
-          padding: EdgeInsets.only(left: 4),
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: 'My ',
-                  style: TextStyle(
-                    color: Color(0xFF002F6C),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24,
-                  ),
-                ),
-                TextSpan(
-                  text: 'Cart',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24,
-                  ),
-                ),
-              ],
-            ),
+     appBar: AppBar(
+  backgroundColor: Colors.white,
+  elevation: 0,
+  centerTitle: false,
+  titleSpacing: -5,  // Reduces the space between the back icon and the title
+  title: const Text.rich(
+    TextSpan(
+      children: [
+        TextSpan(
+          text: 'My ',
+          style: TextStyle(
+            color: Color(0xFF002F6C),
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
+        TextSpan(
+          text: 'Cart',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
         ),
-      ),
+      ],
+    ),
+  ),
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+    onPressed: () => Navigator.of(context).pop(),
+  ),
+),
+
       body: Column(
         children: [
           Expanded(
