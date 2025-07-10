@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerCartPage extends StatefulWidget {
   const ConsumerCartPage({super.key});
@@ -145,7 +146,9 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                     Navigator.pushNamed(context, AppRoutes.consumercheckout);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00296B),
                     shape: RoundedRectangleBorder(
