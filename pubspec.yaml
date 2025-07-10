@@ -11,6 +11,8 @@ dependencies:
   google_fonts: ^6.2.1
   flutter:
     sdk: flutter
+  google_maps_flutter: ^2.12.3
+  geocoding: ^4.0.0
    
 
 dev_dependencies:
