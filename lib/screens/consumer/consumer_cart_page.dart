@@ -89,7 +89,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
           ),
 
           // Subtotal & Delivery Fee - Top-left curved, light blue
-          Container(
+          Container(           
             decoration: const BoxDecoration(
               color: Color(0xFFF0F6FF), // New color
               borderRadius: BorderRadius.only(topLeft: Radius.circular(32)),
