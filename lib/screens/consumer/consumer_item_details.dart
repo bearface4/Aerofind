@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class ConsumerItemDetails extends StatefulWidget {
+  const ConsumerItemDetails({super.key});
+
   @override
   _ConsumerItemDetailsState createState() => _ConsumerItemDetailsState();
 }
