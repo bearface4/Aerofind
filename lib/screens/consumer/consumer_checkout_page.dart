@@ -225,7 +225,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
+        border: Border.all(color: primaryColor),
         borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.centerLeft,
