@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerCheckoutPage extends StatefulWidget {
   const ConsumerCheckoutPage({super.key});
@@ -185,6 +186,28 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     );
   }
 
+  // Updated _addAddressButton method to navigate to the 'consumerdelivery' route
+  Widget _addAddressButton() {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to the 'consumerdelivery' route
+        Navigator.pushNamed(context, AppRoutes.consumerdelivery);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: primaryColor),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerLeft,
+        child: const Text(
+          '+ Delivery Address',
+          style: TextStyle(color: Colors.grey),
+        ),
+      ),
+    );
+  }
+
   Widget _addressCard({
     required String title,
     required String subtitle,
@@ -217,21 +240,6 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _addAddressButton() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: primaryColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      alignment: Alignment.centerLeft,
-      child: const Text(
-        '+ Delivery Address',
-        style: TextStyle(color: Colors.grey),
       ),
     );
   }
