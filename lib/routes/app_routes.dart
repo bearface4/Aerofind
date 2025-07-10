@@ -19,6 +19,7 @@ import '../screens/seller/seller_profile.dart';
 import '../screens/seller/seller_main_page.dart';
 import '../screens/seller/seller_add_new.dart';
 import '../screens/consumer/consumer_item_details.dart';
+import '../screens/consumer/consumer_cart_page.dart';
 
 class AppRoutes {
   // Route name constants
@@ -42,6 +43,7 @@ class AppRoutes {
   static const String sellermain = '/sellermain';
   static const String selleradd = '/selleradd';
   static const String consumeritem = '/consumeritem';
+   static const String consumercart = '/consumercart';
 
   // Route map
   static final Map<String, WidgetBuilder> routes = {
@@ -65,5 +67,6 @@ class AppRoutes {
     sellermain: (context) => const SellerMainPage(),
     selleradd: (context) => const SellerAddProductPage(),
     consumeritem: (context) => ConsumerItemDetails(),
+    consumercart: (context) => ConsumerCartPage(),
   };
 }

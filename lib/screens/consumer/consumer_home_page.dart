@@ -42,7 +42,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       'title': 'Chicken Meal',
       'price': 144,
       'image': 'assets/chickenwings.jpg',
-      'route': AppRoutes.consumeritem, // Mark it with route
+      'route': AppRoutes.consumeritem,
     },
   ];
 
@@ -260,7 +260,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             ),
           );
 
-          // If product has a route, make it clickable
           if (product.containsKey('route')) {
             return GestureDetector(
               onTap: () {
@@ -280,40 +279,45 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     return Positioned(
       bottom: 60,
       right: 16,
-      child: Stack(
-        alignment: Alignment.topRight,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
-            decoration: const BoxDecoration(
-              color: Color(0xFF002363),
-              shape: BoxShape.circle,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.shopping_cart, color: Colors.white),
-                SizedBox(height: 4),
-                Text(
-                  "My Cart",
-                  style: TextStyle(fontSize: 10, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          const Positioned(
-            right: 0,
-            top: 0,
-            child: CircleAvatar(
-              radius: 8,
-              backgroundColor: Colors.red,
-              child: Text(
-                '0',
-                style: TextStyle(fontSize: 10, color: Colors.white),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.pushNamed(context, AppRoutes.consumercart);
+        },
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 18),
+              decoration: const BoxDecoration(
+                color: Color(0xFF002363),
+                shape: BoxShape.circle,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.shopping_cart, color: Colors.white),
+                  SizedBox(height: 4),
+                  Text(
+                    "My Cart",
+                    style: TextStyle(fontSize: 10, color: Colors.white),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            const Positioned(
+              right: 0,
+              top: 0,
+              child: CircleAvatar(
+                radius: 8,
+                backgroundColor: Colors.red,
+                child: Text(
+                  '0',
+                  style: TextStyle(fontSize: 10, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
