@@ -96,15 +96,6 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Delivery Address'),
-        backgroundColor: const Color(0xFF001F5B),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: Stack(
         children: [
           GoogleMap(
@@ -117,6 +108,29 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
             },
             markers: _markers, // Display the markers
             onTap: _onMapTapped, // Handle map taps to drop a pin
+          ),
+          // Floating back arrow button with a circular white background
+          Positioned(
+            top: 30, // Adjust the top position for the back button
+            left: 16,
+            child: Container(
+              padding: const EdgeInsets.all(3), // Adjust padding to fit the icon nicely
+              decoration: BoxDecoration(
+                color: Colors.white, // Circular white background
+                shape: BoxShape.circle, // Ensures it's a circle
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.5),
+                    blurRadius: 4,
+                    spreadRadius: 1,
+                  ),
+                ], // Optional: add shadow for depth effect
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 24), // Adjust icon size
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
