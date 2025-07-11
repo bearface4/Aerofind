@@ -227,10 +227,22 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                         ],
                                       ),
                                     ),
-                                    Transform.translate(
-                                      offset: const Offset(0, -10),
-                                      child: const Icon(Icons.edit, size: 20),
-                                    ),
+                                   Transform.translate(
+                          offset: const Offset(0, -10),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isPinDropped = false;
+                                _isLocationConfirmed = false;
+                                _markers.clear();
+                                _floorController.clear();
+                                _addressController.clear();
+                                _displayAddress = '';
+                              });
+                            },
+                            child: const Icon(Icons.edit, size: 20),
+                          ),
+                        ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
