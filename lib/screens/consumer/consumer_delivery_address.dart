@@ -235,15 +235,20 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                 ),
                                 const SizedBox(height: 16),
                                 TextField(
-                                  controller: _floorController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Floor/Unit/Room #',
-                                    labelStyle: GoogleFonts.inter(),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
+                              controller: _floorController,
+                              decoration: InputDecoration(
+                                labelText: 'Floor/Unit/Room #',
+                                labelStyle: GoogleFonts.inter(),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Color(0xFF001F5B), width: 2),
+                                ),
+                              ),
+                            ),
+
                                 const SizedBox(height: 16),
                                 Text(
                                   'Add Label',
