@@ -64,7 +64,7 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
         markerId: const MarkerId('location_marker'),
         position: _currentLocation,
         infoWindow: const InfoWindow(title: 'Selected Location'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
       ));
     });
 
