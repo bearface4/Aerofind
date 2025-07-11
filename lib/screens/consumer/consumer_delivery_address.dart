@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geocoding/geocoding.dart' as geocoding;  // Explicitly alias geocoding
-import 'package:location/location.dart' as loc;  // Alias for the location package
+import 'package:geocoding/geocoding.dart' as geocoding;
+import 'package:location/location.dart' as loc;
 
 class ConsumerDeliveryAddress extends StatefulWidget {
   const ConsumerDeliveryAddress({super.key});
@@ -27,12 +27,12 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
           _currentLocation = LatLng(locations.first.latitude, locations.first.longitude);
           // Remove old marker if exists
           _markers.clear();
-          // Add a custom pin marker at the new location
+          // Add a red marker at the new location
           _markers.add(Marker(
             markerId: MarkerId('address_marker'),
             position: _currentLocation,
             infoWindow: InfoWindow(title: 'Selected Address'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Custom Pin
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Red Pin for all markers
           ));
         });
 
@@ -57,12 +57,12 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
           _currentLocation = LatLng(currentLocation.latitude!, currentLocation.longitude!);
           // Remove old marker if exists
           _markers.clear();
-          // Add a custom pin marker for current location
+          // Add a red marker for current location
           _markers.add(Marker(
             markerId: MarkerId('current_location_marker'),
             position: _currentLocation,
             infoWindow: InfoWindow(title: 'Your Current Location'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue), // Custom Pin
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Red Pin for all markers
           ));
         });
 
@@ -87,7 +87,7 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
         markerId: MarkerId('tapped_location_marker'),
         position: _currentLocation,
         infoWindow: InfoWindow(title: 'Tapped Location'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Custom Pin
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Red Pin for all markers
       ));
     });
     _mapController.animateCamera(CameraUpdate.newLatLng(_currentLocation));
@@ -109,75 +109,88 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
             markers: _markers, // Display the markers
             onTap: _onMapTapped, // Handle map taps to drop a pin
           ),
-          // Floating back arrow button with a circular white background
           Positioned(
-            top: 30, // Adjust the top position for the back button
+            top: 30,
             left: 16,
             child: Container(
-              padding: const EdgeInsets.all(3), // Adjust padding to fit the icon nicely
+              padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: Colors.white, // Circular white background
-                shape: BoxShape.circle, // Ensures it's a circle
+                color: Colors.white,
+                shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.grey.withOpacity(0.5),
                     blurRadius: 4,
                     spreadRadius: 1,
                   ),
-                ], // Optional: add shadow for depth effect
+                ],
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 24), // Adjust icon size
+                icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 24),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Container(
-              height: 180, // Adjusted height for the container
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
+            child: SingleChildScrollView(
+              child: Container(
+                height: 300, // Adjusted height for the bottom container
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30), // Curved only on the left side
+                  ),
                 ),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Text field for address input
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: TextField(
-                      controller: _addressController,
-                      decoration: InputDecoration(
-                        labelText: 'Enter your address',
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.search),
-                          onPressed: () {
-                            _getLatLngFromAddress(_addressController.text);
-                          },
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Search bar for address input
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      child: TextField(
+                        controller: _addressController,
+                        decoration: InputDecoration(
+                          labelText: 'Enter your address',
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.search),
+                            onPressed: () {
+                              _getLatLngFromAddress(_addressController.text);
+                            },
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Button to use current location
-                  ElevatedButton(
-                    onPressed: _getCurrentLocation,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF001F5B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    // Image widget for the UI
+                    Image.asset(
+                      'assets/map.png', // Make sure to add the image in your assets folder
+                      height: 120, // Adjust the height of the image as needed
+                    ),
+                    const SizedBox(height: 8), // Space between the image and the text
+                    // Text for additional info
+                    const Text(
+                      'Enter your address for more accurate location',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    // "Use my current location" as clickable text
+                    GestureDetector(
+                      onTap: _getCurrentLocation,
+                      child: const Text(
+                        'Use my current location',
+                        style: TextStyle(
+                          color: Color(0xFF001F5B),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
-                    child: const Text('Use my current location'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
