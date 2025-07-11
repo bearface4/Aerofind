@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:location/location.dart' as loc;
+import 'package:google_fonts/google_fonts.dart';
 
 class ConsumerDeliveryAddress extends StatefulWidget {
   const ConsumerDeliveryAddress({super.key});
@@ -141,15 +142,15 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                       ? Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
+                            Text(
                               'Pin your exact location',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
+                            Text(
                               'Move the pin to your home for accurate delivery',
                               textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 14),
+                              style: GoogleFonts.inter(fontSize: 14),
                             ),
                             const SizedBox(height: 20),
                             Row(
@@ -171,7 +172,7 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                       _markers.clear();
                                     });
                                   },
-                                  child: const Text('Back'),
+                                  child: Text('Back', style: GoogleFonts.inter()),
                                 ),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
@@ -187,7 +188,7 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                       _isLocationConfirmed = true;
                                     });
                                   },
-                                  child: const Text('Confirm location'),
+                                  child: Text('Confirm location', style: GoogleFonts.inter()),
                                 ),
                               ],
                             ),
@@ -197,15 +198,15 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Add a new address',
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                  style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: 16),
                                 Row(
                                   children: [
                                     Transform.translate(
-                                      offset: const Offset(0, -14), // Moves icon up
+                                      offset: const Offset(0, -14),
                                       child: const Icon(Icons.location_on_outlined, size: 38),
                                     ),
                                     const SizedBox(width: 8),
@@ -217,17 +218,19 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                             _displayAddress.isNotEmpty
                                                 ? _displayAddress
                                                 : 'Loading address...',
-                                            style: const TextStyle(
-                                                fontSize: 16, fontWeight: FontWeight.bold),
+                                            style: GoogleFonts.inter(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                          const Text(''),
+                                          Text('', style: GoogleFonts.inter()),
                                         ],
                                       ),
                                     ),
                                     Transform.translate(
-                                offset: const Offset(0, -10),
-                                child: const Icon(Icons.edit, size: 20),
-                              ),
+                                      offset: const Offset(0, -10),
+                                      child: const Icon(Icons.edit, size: 20),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
@@ -235,15 +238,17 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                   controller: _floorController,
                                   decoration: InputDecoration(
                                     labelText: 'Floor/Unit/Room #',
+                                    labelStyle: GoogleFonts.inter(),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
+                                Text(
                                   'Add Label',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700, fontSize: 16),
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
@@ -272,7 +277,7 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                   onPressed: () {
                                     print("Address confirmed: $_displayAddress");
                                   },
-                                  child: const Text('Add location'),
+                                  child: Text('Add location', style: GoogleFonts.inter()),
                                 )
                               ],
                             )
@@ -284,6 +289,7 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                     controller: _addressController,
                                     decoration: InputDecoration(
                                       labelText: 'Enter your address',
+                                      labelStyle: GoogleFonts.inter(),
                                       suffixIcon: IconButton(
                                         icon: const Icon(Icons.search),
                                         onPressed: () {
@@ -301,17 +307,20 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                   height: 120,
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
+                                Text(
                                   'Enter your address for more accurate location',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
                                 GestureDetector(
                                   onTap: _getCurrentLocation,
-                                  child: const Text(
+                                  child: Text(
                                     'Use my current location',
-                                    style: TextStyle(
-                                      color: Color(0xFF001F5B),
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF001F5B),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
@@ -340,7 +349,7 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
           child: Icon(icon, color: Colors.black),
         ),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        Text(label, style: GoogleFonts.inter(fontSize: 12)),
       ],
     );
   }
