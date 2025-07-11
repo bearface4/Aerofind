@@ -13,30 +13,28 @@ class ConsumerDeliveryAddress extends StatefulWidget {
 class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
   late GoogleMapController _mapController;
   LatLng _currentLocation = const LatLng(14.5547, 121.0194); // Default to Manila
-  final Set<Marker> _markers = {}; // For holding markers
+  final Set<Marker> _markers = {};
   final TextEditingController _addressController = TextEditingController();
-  final loc.Location _location = loc.Location(); // Create an instance of the Location package
+  final loc.Location _location = loc.Location();
 
-  // Function to get latitude and longitude from the address
+  bool _isPinDropped = false;
+
   Future<void> _getLatLngFromAddress(String address) async {
     try {
-      // Convert address to lat/lng using Geocoding API (using geocoding.Location)
-      List<geocoding.Location> locations = await geocoding.locationFromAddress(address); // Using geocoding's Location
+      List<geocoding.Location> locations = await geocoding.locationFromAddress(address);
       if (locations.isNotEmpty) {
         setState(() {
           _currentLocation = LatLng(locations.first.latitude, locations.first.longitude);
-          // Remove old marker if exists
+          _isPinDropped = true;
           _markers.clear();
-          // Add a red marker at the new location
           _markers.add(Marker(
-            markerId: MarkerId('address_marker'),
+            markerId: const MarkerId('address_marker'),
             position: _currentLocation,
-            infoWindow: InfoWindow(title: 'Selected Address'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Red Pin for all markers
+            infoWindow: const InfoWindow(title: 'Selected Address'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           ));
         });
 
-        // Move camera to the new position
         _mapController.animateCamera(CameraUpdate.newLatLng(_currentLocation));
       }
     } catch (e) {
@@ -44,32 +42,25 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
     }
   }
 
-  // Function to get the current location of the user
   Future<void> _getCurrentLocation() async {
     try {
-      // Check if the app has permission to access the location
       var permissionStatus = await _location.requestPermission();
       if (permissionStatus == loc.PermissionStatus.granted) {
-        // Get current location
         var currentLocation = await _location.getLocation();
-
         setState(() {
           _currentLocation = LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          // Remove old marker if exists
+          _isPinDropped = true;
           _markers.clear();
-          // Add a red marker for current location
           _markers.add(Marker(
-            markerId: MarkerId('current_location_marker'),
+            markerId: const MarkerId('current_location_marker'),
             position: _currentLocation,
-            infoWindow: InfoWindow(title: 'Your Current Location'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Red Pin for all markers
+            infoWindow: const InfoWindow(title: 'Your Current Location'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           ));
         });
 
-        // Move camera to the current location
         _mapController.animateCamera(CameraUpdate.newLatLng(_currentLocation));
       } else {
-        // Handle location permission denied
         print("Permission Denied");
       }
     } catch (e) {
@@ -77,19 +68,19 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
     }
   }
 
-  // Function to handle tap on the map to drop a pin
   void _onMapTapped(LatLng tappedPoint) {
     setState(() {
       _currentLocation = tappedPoint;
-      // Clear previous marker and add a new one at the tapped location
+      _isPinDropped = true;
       _markers.clear();
       _markers.add(Marker(
-        markerId: MarkerId('tapped_location_marker'),
+        markerId: const MarkerId('tapped_location_marker'),
         position: _currentLocation,
-        infoWindow: InfoWindow(title: 'Tapped Location'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed), // Red Pin for all markers
+        infoWindow: const InfoWindow(title: 'Tapped Location'),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       ));
     });
+
     _mapController.animateCamera(CameraUpdate.newLatLng(_currentLocation));
   }
 
@@ -106,8 +97,8 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
             onMapCreated: (GoogleMapController controller) {
               _mapController = controller;
             },
-            markers: _markers, // Display the markers
-            onTap: _onMapTapped, // Handle map taps to drop a pin
+            markers: _markers,
+            onTap: _onMapTapped,
           ),
           Positioned(
             top: 30,
@@ -135,62 +126,116 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
             alignment: Alignment.bottomCenter,
             child: SingleChildScrollView(
               child: Container(
-                height: 300, // Adjusted height for the bottom container
+                height: 300,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(30), // Curved only on the left side
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(30),
                   ),
                 ),
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Search bar for address input
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: TextField(
-                        controller: _addressController,
-                        decoration: InputDecoration(
-                          labelText: 'Enter your address',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.search),
-                            onPressed: () {
-                              _getLatLngFromAddress(_addressController.text);
-                            },
+                child: _isPinDropped
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Pin your exact location',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Move the pin to your home for accurate delivery',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14),
                           ),
-                        ),
-                      ),
-                    ),
-                    // Image widget for the UI
-                    Image.asset(
-                      'assets/map.png', // Make sure to add the image in your assets folder
-                      height: 120, // Adjust the height of the image as needed
-                    ),
-                    const SizedBox(height: 8), // Space between the image and the text
-                    // Text for additional info
-                    const Text(
-                      'Enter your address for more accurate location',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    // "Use my current location" as clickable text
-                    GestureDetector(
-                      onTap: _getCurrentLocation,
-                      child: const Text(
-                        'Use my current location',
-                        style: TextStyle(
-                          color: Color(0xFF001F5B),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
+                          const SizedBox(height: 20),
+                                  Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Back Button
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF001F5B), // Text color
+                  side: const BorderSide(color: Color(0xFF001F5B), width: 2), // Border color
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                onPressed: () {
+                  setState(() {
+                    _isPinDropped = false;
+                    _markers.clear();
+                  });
+                },
+                child: const Text('Back'),
+              ),
+
+              // Confirm Button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF001F5B), // Dark blue
+                  foregroundColor: Colors.white, // Text color
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  print("Location confirmed: $_currentLocation");
+                },
+                child: const Text('Confirm location'),
+              ),
+            ],
+          ),
+
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            child: TextField(
+                              controller: _addressController,
+                              decoration: InputDecoration(
+                                labelText: 'Enter your address',
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.search),
+                                  onPressed: () {
+                                    _getLatLngFromAddress(_addressController.text);
+                                  },
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Image.asset(
+                            'assets/map.png',
+                            height: 120,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Enter your address for more accurate location',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: _getCurrentLocation,
+                            child: const Text(
+                              'Use my current location',
+                              style: TextStyle(
+                                color: Color(0xFF001F5B),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),
