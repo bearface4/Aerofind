@@ -224,7 +224,10 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.edit, size: 20),
+                                    Transform.translate(
+                                offset: const Offset(0, -10),
+                                child: const Icon(Icons.edit, size: 20),
+                              ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
