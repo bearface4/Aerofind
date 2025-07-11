@@ -39,29 +39,41 @@ class ConsumerStoreViewer extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  Image.asset(
-                    'assets/talpakbanner.jpg',
-                    width: double.infinity,
-                    height: 220,
-                    fit: BoxFit.cover,
-                  ),
-                  Positioned(
-                    top: 40,
-                    left: 16,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white70,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.arrow_back),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                  ),
+                  Stack(
+  children: [
+    Image.asset(
+      'assets/talpakbanner.jpg',
+      width: double.infinity,
+      height: 220,
+      fit: BoxFit.cover,
+    ),
+    Container(
+      width: double.infinity,
+      height: 220,
+      color: Colors.black.withOpacity(0.4), // adjust opacity as needed
+    ),
+  ],
+),
+  Positioned(
+  top: 40,
+  left: 16,
+  child: Container(
+    padding: EdgeInsets.all(1), // control the background size
+    decoration: BoxDecoration(
+      color: Colors.white70,
+      shape: BoxShape.circle,
+    ),
+    child: IconButton(
+      icon: Icon(Icons.arrow_back_ios, size: 16), // optional: reduce icon size
+      padding: EdgeInsets.zero,
+      constraints: BoxConstraints(), // remove default button constraints
+      onPressed: () => Navigator.pop(context),
+    ),
+  ),
+),
                 ],
               ),
-              SizedBox(height: 100),
+              SizedBox(height: 120),
               Expanded(
                 child: GridView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 20),
@@ -70,7 +82,7 @@ class ConsumerStoreViewer extends StatelessWidget {
                     crossAxisCount: 2,
                     mainAxisSpacing: 20,
                     crossAxisSpacing: 20,
-                    childAspectRatio: 0.65, // taller, narrower
+                    childAspectRatio: 0.65,
                   ),
                   itemBuilder: (context, index) {
                     final item = menuItems[index];
@@ -122,8 +134,7 @@ class StoreCard extends StatelessWidget {
           ),
           SizedBox(width: 16),
           Expanded(
-            child: 
-            Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -137,6 +148,7 @@ class StoreCard extends StatelessWidget {
                   '10th - 27th Villamor',
                   style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
                 ),
+                SizedBox(height: 4),
                 Row(
                   children: [
                     Icon(Icons.star, color: Colors.orange, size: 16),
@@ -149,11 +161,15 @@ class StoreCard extends StatelessWidget {
                       ' (218)',
                       style: GoogleFonts.poppins(color: Colors.grey),
                     ),
-                    SizedBox(width: 12),
+                  ],
+                ),
+                SizedBox(height: 4),
+                Row(
+                  children: [
                     Icon(Icons.delivery_dining, size: 16, color: Colors.grey),
                     SizedBox(width: 4),
                     Text(
-                      '₱50',
+                      '\u20B1 50',
                       style: GoogleFonts.poppins(fontSize: 13),
                     ),
                   ],
@@ -192,7 +208,7 @@ class MenuCard extends StatelessWidget {
               child: Image.asset(
                 image,
                 width: double.infinity,
-                height: 150, // taller image
+                height: 150,
                 fit: BoxFit.cover,
               ),
             ),
@@ -233,13 +249,13 @@ class MenuCard extends StatelessWidget {
         ),
         SizedBox(height: 2),
         Text(
-        price,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color:Color(0xFF002363),
+          price,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF002363),
+          ),
         ),
-      ),
         SizedBox(height: 6),
         Row(
           children: [
@@ -266,24 +282,24 @@ class MenuCard extends StatelessWidget {
             ),
             SizedBox(width: 8),
             Container(
-  padding: const EdgeInsets.all(2), // Thickness of outer border
-  decoration: const BoxDecoration(
-    color: Color(0xFF002363), // Outer dark blue border
-    shape: BoxShape.circle,
-  ),
-  child: Container(
-    padding: const EdgeInsets.all(8), // Inner padding for the icon
-    decoration: const BoxDecoration(
-      color: Colors.white, // Inner white fill
-      shape: BoxShape.circle,
-    ),
-    child: const Icon(
-      Icons.shopping_cart_outlined,
-      size: 16,
-      color: Color(0xFF002363), // Dark blue icon
-    ),
-  ),
-)
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                color: Color(0xFF002363),
+                shape: BoxShape.circle,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.shopping_cart_outlined,
+                  size: 16,
+                  color: Color(0xFF002363),
+                ),
+              ),
+            ),
           ],
         ),
       ],
