@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerItemDetails extends StatefulWidget {
   const ConsumerItemDetails({super.key});
@@ -114,19 +115,30 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               const SizedBox(height: 4),
 
               // Vendor
-              Row(
-                children: const [
-                  Text(
-                    'Talpak Wings PH',
-                    style: TextStyle(fontSize: 13, 
-                    color: Colors.grey,
-                    decoration: TextDecoration.underline,
-                    ),
+            GestureDetector(
+                  onTap: () {
+                    Navigator.pushNamed(context, AppRoutes.consumerstoreview);
+                  },
+                  child: Row(
+                    children: const [
+                      Text(
+                        'Talpak Wings PH',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.open_in_new,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 4),
-                  Icon(Icons.open_in_new, size: 14, color: Colors.grey),
-                ],
-              ),
+                ),
+
 
               const SizedBox(height: 16),
 
