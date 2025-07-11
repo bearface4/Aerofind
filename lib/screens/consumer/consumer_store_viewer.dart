@@ -40,37 +40,40 @@ class ConsumerStoreViewer extends StatelessWidget {
               Stack(
                 children: [
                   Stack(
-  children: [
-    Image.asset(
-      'assets/talpakbanner.jpg',
-      width: double.infinity,
-      height: 220,
-      fit: BoxFit.cover,
-    ),
-    Container(
-      width: double.infinity,
-      height: 220,
-      color: Colors.black.withOpacity(0.4), // adjust opacity as needed
-    ),
-  ],
-),
-  Positioned(
-  top: 40,
-  left: 16,
-  child: Container(
-    padding: EdgeInsets.all(1), // control the background size
-    decoration: BoxDecoration(
-      color: Colors.white70,
-      shape: BoxShape.circle,
-    ),
-    child: IconButton(
-      icon: Icon(Icons.arrow_back_ios, size: 16), // optional: reduce icon size
-      padding: EdgeInsets.zero,
-      constraints: BoxConstraints(), // remove default button constraints
-      onPressed: () => Navigator.pop(context),
-    ),
-  ),
-),
+                    children: [
+                      Image.asset(
+                        'assets/talpakbanner.jpg',
+                        width: double.infinity,
+                        height: 220,
+                        fit: BoxFit.cover,
+                      ),
+                      Container(
+                        width: double.infinity,
+                        height: 220,
+                        color: Colors.black.withOpacity(
+                          0.4,
+                        ), // adjust opacity as needed
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 40,
+                    left: 16,
+                    child: Container(
+                      padding: EdgeInsets.all(1), // control the background size
+                      decoration: BoxDecoration(
+                        color: Colors.white70,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.arrow_back_ios, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            BoxConstraints(), // remove default button constraints
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               SizedBox(height: 120),
@@ -97,12 +100,7 @@ class ConsumerStoreViewer extends StatelessWidget {
               ),
             ],
           ),
-          Positioned(
-            top: 180,
-            left: 20,
-            right: 20,
-            child: StoreCard(),
-          ),
+          Positioned(top: 180, left: 20, right: 20, child: StoreCard()),
         ],
       ),
     );
@@ -118,20 +116,12 @@ class StoreCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         color: Colors.white,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
         children: [
-          Image.asset(
-            'assets/talpaklogo.jpg',
-            width: 60,
-            height: 60,
-          ),
+          Image.asset('assets/talpaklogo.jpg', width: 60, height: 60),
           SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -168,10 +158,7 @@ class StoreCard extends StatelessWidget {
                   children: [
                     Icon(Icons.delivery_dining, size: 16, color: Colors.grey),
                     SizedBox(width: 4),
-                    Text(
-                      '\u20B1 50',
-                      style: GoogleFonts.poppins(fontSize: 13),
-                    ),
+                    Text('\u20B1 50', style: GoogleFonts.poppins(fontSize: 13)),
                   ],
                 ),
               ],
@@ -236,16 +223,13 @@ class MenuCard extends StatelessWidget {
                   ],
                 ),
               ),
-            )
+            ),
           ],
         ),
         SizedBox(height: 6),
         Text(
           name,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
+          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 2),
         Text(
@@ -273,10 +257,7 @@ class MenuCard extends StatelessWidget {
                 ),
                 child: Text(
                   "Buy Now",
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.white,
-                  ),
+                  style: GoogleFonts.poppins(fontSize: 13, color: Colors.white),
                 ),
               ),
             ),
