@@ -155,10 +155,9 @@ class SellerProfilePage extends StatelessWidget {
 
               const Divider(thickness: 1),
 
-              // Logout button (left-aligned)
-              const SizedBox(height: 20),
+              // Logout button placed just under the contact number divider
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
@@ -175,6 +174,7 @@ class SellerProfilePage extends StatelessWidget {
                   ),
                 ),
               ),
+
               const SizedBox(height: 30),
             ],
           ),
