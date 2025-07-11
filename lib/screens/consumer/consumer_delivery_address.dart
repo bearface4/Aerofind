@@ -240,15 +240,18 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                 ),
                                 const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    _buildLabelButton(Icons.home, "Home"),
-                                    _buildLabelButton(Icons.work, "Work"),
-                                    _buildLabelButton(Icons.favorite, "Partner"),
-                                    _buildLabelButton(Icons.add, "Add"),
-                                  ],
-                                ),
+                               Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildLabelButton(Icons.home, "Home"),
+                              const SizedBox(width: 12),
+                              _buildLabelButton(Icons.work, "Work"),
+                              const SizedBox(width: 12),
+                              _buildLabelButton(Icons.favorite, "Partner"),
+                              const SizedBox(width: 12),
+                              _buildLabelButton(Icons.add, "Add"),
+                            ],
+                          ),
                                 const SizedBox(height: 16),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
@@ -323,15 +326,15 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0xFF001F5B)),
           ),
-          child: Icon(icon, color: const Color(0xFF001F5B)),
+          child: Icon(icon, color: Colors.black),
         ),
         const SizedBox(height: 4),
-        Text(label),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
