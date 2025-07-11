@@ -204,7 +204,10 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                 const SizedBox(height: 16),
                                 Row(
                                   children: [
-                                    const Icon(Icons.location_on_outlined, size: 28),
+                                    Transform.translate(
+                                      offset: const Offset(0, -14), // Moves icon up
+                                      child: const Icon(Icons.location_on_outlined, size: 38),
+                                    ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Column(
@@ -240,18 +243,18 @@ class _ConsumerDeliveryAddressState extends State<ConsumerDeliveryAddress> {
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                 ),
                                 const SizedBox(height: 8),
-                               Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildLabelButton(Icons.home, "Home"),
-                              const SizedBox(width: 12),
-                              _buildLabelButton(Icons.work, "Work"),
-                              const SizedBox(width: 12),
-                              _buildLabelButton(Icons.favorite, "Partner"),
-                              const SizedBox(width: 12),
-                              _buildLabelButton(Icons.add, "Add"),
-                            ],
-                          ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _buildLabelButton(Icons.home, "Home"),
+                                    const SizedBox(width: 12),
+                                    _buildLabelButton(Icons.work, "Work"),
+                                    const SizedBox(width: 12),
+                                    _buildLabelButton(Icons.favorite, "Partner"),
+                                    const SizedBox(width: 12),
+                                    _buildLabelButton(Icons.add, "Add"),
+                                  ],
+                                ),
                                 const SizedBox(height: 16),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
