@@ -164,7 +164,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                                   // Navigate to pending approval screen
                                   Navigator.pushNamed(
                                     context,
-                                    AppRoutes.sellermain,
+                                    AppRoutes.sellerregistrationpending,
                                   );
                                 }
                               },
