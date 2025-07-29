@@ -66,6 +66,42 @@ class _ConsumerRegistrationScreenState
     );
   }
 
+  String? _validateRequired(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName is required';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email address is required';
+    }
+
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Contact number is required';
+    }
+
+    final trimmed = value.trim();
+    final localRegex = RegExp(r'^09\d{9}$');
+
+    if (!localRegex.hasMatch(trimmed)) {
+      return 'Enter a valid PH number (e.g. 09123456789)';
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,50 +131,53 @@ class _ConsumerRegistrationScreenState
                         children: [
                           const SizedBox(height: 24),
 
-                          // First Name
                           _buildFieldLabel('First Name'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _firstNameCtrl,
                             decoration: _fieldDecoration('Enter first name'),
+                            validator: (value) =>
+                                _validateRequired(value, 'First name'),
                           ),
                           const SizedBox(height: 24),
 
-                          // Last Name
                           _buildFieldLabel('Last Name'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _lastNameCtrl,
                             decoration: _fieldDecoration('Enter last name'),
+                            validator: (value) =>
+                                _validateRequired(value, 'Last name'),
                           ),
                           const SizedBox(height: 24),
 
-                          // Address
                           _buildFieldLabel('Address'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _addressCtrl,
                             decoration: _fieldDecoration('Enter your address'),
+                            validator: (value) =>
+                                _validateRequired(value, 'Address'),
                           ),
                           const SizedBox(height: 24),
 
-                          // Email Address
                           _buildFieldLabel('Email Address'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _emailCtrl,
                             decoration: _fieldDecoration('Enter email address'),
                             keyboardType: TextInputType.emailAddress,
+                            validator: _validateEmail,
                           ),
                           const SizedBox(height: 24),
 
-                          // Contact Number
                           _buildFieldLabel('Contact Number'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _contactNumberCtrl,
                             decoration: _fieldDecoration('Enter contact number'),
                             keyboardType: TextInputType.phone,
+                            validator: _validatePhone,
                           ),
                           const SizedBox(height: 40),
 

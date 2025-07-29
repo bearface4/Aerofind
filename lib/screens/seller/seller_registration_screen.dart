@@ -62,6 +62,32 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
     );
   }
 
+  String? _validateRequired(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName is required';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email address is required';
+    }
+    final emailRegex = RegExp(
+        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
+  String? _validateDropdown(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please select a store type';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -96,7 +122,9 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _storeNameCtrl,
-                            decoration: _fieldDecoration('input store name'),
+                            decoration: _fieldDecoration('Input store name'),
+                            validator: (value) =>
+                                _validateRequired(value, 'Store name'),
                           ),
                           const SizedBox(height: 24),
 
@@ -132,6 +160,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                             ],
                             onChanged: (val) =>
                                 setState(() => _selectedStoreType = val),
+                            validator: _validateDropdown,
                           ),
                           const SizedBox(height: 24),
 
@@ -141,16 +170,19 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                           TextFormField(
                             controller: _addressCtrl,
                             decoration: _fieldDecoration('Input store address'),
+                            validator: (value) =>
+                                _validateRequired(value, 'Address'),
                           ),
                           const SizedBox(height: 24),
 
                           // Email Address
-                          _buildFieldLabel('Email address'),
+                          _buildFieldLabel('Email Address'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _emailCtrl,
                             decoration: _fieldDecoration('Input email address'),
                             keyboardType: TextInputType.emailAddress,
+                            validator: _validateEmail,
                           ),
                           const SizedBox(height: 40),
 
@@ -179,8 +211,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                                             AppRoutes
                                                 .sellerregistrationpending,
                                           );
-                                          setState(() => _isLoading =
-                                              false); // Optional
+                                          setState(() => _isLoading = false);
                                         });
                                       }
                                     },
