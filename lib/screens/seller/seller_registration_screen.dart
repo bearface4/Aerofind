@@ -17,6 +17,8 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
   final _emailCtrl = TextEditingController();
   String? _selectedStoreType;
 
+  bool _isLoading = false;
+
   @override
   void dispose() {
     _storeNameCtrl.dispose();
@@ -128,9 +130,8 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                                 child: Text('Printing'),
                               ),
                             ],
-                            onChanged:
-                                (val) =>
-                                    setState(() => _selectedStoreType = val),
+                            onChanged: (val) =>
+                                setState(() => _selectedStoreType = val),
                           ),
                           const SizedBox(height: 24),
 
@@ -153,35 +154,51 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                           ),
                           const SizedBox(height: 40),
 
-                          // Register Button
+                          // Register Button or Loader
                           SizedBox(
                             width: double.infinity,
                             height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                if (_formKey.currentState?.validate() ??
-                                    false) {
-                                  // Navigate to pending approval screen
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.sellerregistrationpending,
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF002F6C),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                              ),
-                              child: const Text(
-                                'Register',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF002F6C)),
+                                    ),
+                                  )
+                                : ElevatedButton(
+                                    onPressed: () {
+                                      if (_formKey.currentState?.validate() ??
+                                          false) {
+                                        setState(() => _isLoading = true);
+
+                                        // Simulated delay or async logic
+                                        Future.delayed(
+                                            const Duration(seconds: 1), () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            AppRoutes
+                                                .sellerregistrationpending,
+                                          );
+                                          setState(() => _isLoading =
+                                              false); // Optional
+                                        });
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF002F6C),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(18),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Register',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ],
                       ),

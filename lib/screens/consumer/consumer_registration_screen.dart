@@ -19,6 +19,8 @@ class _ConsumerRegistrationScreenState
   final _emailCtrl = TextEditingController();
   final _contactNumberCtrl = TextEditingController();
 
+  bool _isLoading = false;
+
   @override
   void dispose() {
     _firstNameCtrl.dispose();
@@ -135,42 +137,54 @@ class _ConsumerRegistrationScreenState
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _contactNumberCtrl,
-                            decoration: _fieldDecoration(
-                              'Enter contact number',
-                            ),
+                            decoration: _fieldDecoration('Enter contact number'),
                             keyboardType: TextInputType.phone,
                           ),
                           const SizedBox(height: 40),
 
-                          // Register Button
+                          // Register Button or Loader
                           SizedBox(
                             width: double.infinity,
                             height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                if (_formKey.currentState?.validate() ??
-                                    false) {
-                                  // Go to email verification screen
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.emailverification,
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF002F6C),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                              ),
-                              child: const Text(
-                                'Register',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF002F6C),
+                                      ),
+                                    ),
+                                  )
+                                : ElevatedButton(
+                                    onPressed: () {
+                                      if (_formKey.currentState?.validate() ??
+                                          false) {
+                                        setState(() => _isLoading = true);
+
+                                        Future.delayed(
+                                            const Duration(seconds: 1), () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            AppRoutes.emailverification,
+                                          );
+                                          setState(() => _isLoading = false);
+                                        });
+                                      }
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF002F6C),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(18),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Register',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
