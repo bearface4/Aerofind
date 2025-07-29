@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:aerofind/routes/app_routes.dart';
 
 class SellerRegistrationScreen extends StatefulWidget {
@@ -86,6 +88,61 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
       return 'Please select a store type';
     }
     return null;
+  }
+
+  Future<void> _registerSeller() async {
+    final url = Uri.parse('http://10.0.2.2:8000/seller/register');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "email": _emailCtrl.text.trim(),
+          "password": "",
+          "store_name": _storeNameCtrl.text.trim(),
+          "latitude": 0,
+          "longitude": 0,
+          "store_type": _selectedStoreType,
+          "address": _addressCtrl.text.trim(),
+        }),
+      );
+
+      debugPrint("📨 Status Code: ${response.statusCode}");
+      debugPrint("📨 Response Body: ${response.body}");
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      Navigator.pushReplacementNamed(context, AppRoutes.sellerregistrationpending);
+    } else {
+      try {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        _showErrorDialog(json['detail'] ?? 'Registration failed');
+      } catch (_) {
+        _showErrorDialog('Unexpected response from server');
+      }
+    }
+    } catch (e) {
+      debugPrint("❌ Exception: $e");
+      _showErrorDialog('Something went wrong. Please try again.');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Registration Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -202,17 +259,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                                       if (_formKey.currentState?.validate() ??
                                           false) {
                                         setState(() => _isLoading = true);
-
-                                        // Simulated delay or async logic
-                                        Future.delayed(
-                                            const Duration(seconds: 1), () {
-                                          Navigator.pushNamed(
-                                            context,
-                                            AppRoutes
-                                                .sellerregistrationpending,
-                                          );
-                                          setState(() => _isLoading = false);
-                                        });
+                                        _registerSeller();
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(

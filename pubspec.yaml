@@ -16,6 +16,7 @@ dependencies:
   google_places_flutter: ^2.1.0
   permission_handler: ^12.0.1
   location: ^8.0.1
+  http: ^1.4.0
    
 
 dev_dependencies:
