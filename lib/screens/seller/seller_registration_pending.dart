@@ -2,8 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:aerofind/routes/app_routes.dart';
 
-class SellerPendingScreen extends StatelessWidget {
+class SellerPendingScreen extends StatefulWidget {
   const SellerPendingScreen({super.key});
+
+  @override
+  State<SellerPendingScreen> createState() => _SellerPendingScreenState();
+}
+
+class _SellerPendingScreenState extends State<SellerPendingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 5), () {
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,30 +58,6 @@ class SellerPendingScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF002F6C),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.pushNamed(context, AppRoutes.sellermain);
-                  },
-                  child: const Text('Go to Home Screen'),
                 ),
               ),
             ),
