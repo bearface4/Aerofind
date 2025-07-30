@@ -1,3 +1,3 @@
-# aerofind
+# Aerofind
 
-A new Flutter project.
+An ECommerce platform.
