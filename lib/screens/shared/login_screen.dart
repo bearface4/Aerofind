@@ -13,6 +13,8 @@ class _LoginScreenState extends State<LoginScreen>
   late final AnimationController _controller;
   late final Animation<Offset> _slideAnimation;
 
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -118,32 +120,46 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 24),
 
-                        // ────────── Login button → OTP ──────────
+                        // ────────── Login button or loader ──────────
                         SizedBox(
                           width: double.infinity,
                           height: 50,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF002F6C),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () {
-                              // Navigate to the consumer home screen
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.loginotp,
-                              );
-                            },
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF002F6C),
+                                    ),
+                                  ),
+                                )
+                              : ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF002F6C),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    setState(() => _isLoading = true);
+
+                                    // Simulate loading
+                                    Future.delayed(const Duration(seconds: 1),
+                                        () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.loginotp,
+                                      );
+                                      setState(() => _isLoading = false);
+                                    });
+                                  },
+                                  child: const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                         ),
                         const SizedBox(height: 24),
 
