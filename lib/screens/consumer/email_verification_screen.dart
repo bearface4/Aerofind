@@ -10,8 +10,8 @@ class EmailVerificationScreen extends StatefulWidget {
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   final List<TextEditingController> otpControllers =
-      List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> focusNodes = List.generate(4, (_) => FocusNode());
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> focusNodes = List.generate(6, (_) => FocusNode());
 
   @override
   void dispose() {
@@ -43,7 +43,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -57,16 +57,16 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  "Enter code we’ve sent to your inbox.",
+                  "Enter the code we’ve sent to your inbox.",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 const SizedBox(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(4, (index) {
+                  children: List.generate(6, (index) {
                     return SizedBox(
-                      width: 60,
+                      width: 50,
                       height: 60,
                       child: RawKeyboardListener(
                         focusNode: FocusNode(), // Needed for RawKeyboardListener
@@ -87,14 +87,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             fillColor: Colors.white,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: Colors.red, // Change to your color conditionally
-                                width: 2,
+                              borderSide: const BorderSide(
+                                color: Colors.transparent,
                               ),
                             ),
                           ),
                           onChanged: (value) {
-                            if (value.isNotEmpty && index < 3) {
+                            if (value.isNotEmpty && index < 5) {
                               FocusScope.of(context).requestFocus(focusNodes[index + 1]);
                             }
                           },
@@ -105,13 +104,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 ),
                 const SizedBox(height: 30),
                 RichText(
-                  text: TextSpan(
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  text: const TextSpan(
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                     children: [
-                      const TextSpan(text: "Didn’t get the code? "),
+                      TextSpan(text: "Didn’t get the code? "),
                       TextSpan(
                         text: "Resend it.",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           decoration: TextDecoration.underline,
                         ),

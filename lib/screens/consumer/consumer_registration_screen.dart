@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerRegistrationScreen extends StatefulWidget {
@@ -12,14 +14,14 @@ class ConsumerRegistrationScreen extends StatefulWidget {
 class _ConsumerRegistrationScreenState
     extends State<ConsumerRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _contactNumberCtrl = TextEditingController();
-
   bool _isLoading = false;
+
+  final baseUrl = 'http://10.0.2.2:8000'; // Android emulator local address
 
   @override
   void dispose() {
@@ -34,21 +36,16 @@ class _ConsumerRegistrationScreenState
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(
-        color: Colors.grey,
-        fontStyle: FontStyle.italic,
-      ),
+      hintStyle: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Colors.grey),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: Colors.grey.shade500),
-      ),
-      focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF002F6C), width: 1.5),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: Color(0xFF002F6C), width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
@@ -59,47 +56,94 @@ class _ConsumerRegistrationScreenState
       text: TextSpan(
         text: label,
         style: const TextStyle(color: Colors.grey, fontSize: 15),
-        children: const [
-          TextSpan(text: ' *', style: TextStyle(color: Colors.red)),
-        ],
+        children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
       ),
     );
   }
 
-  String? _validateRequired(String? value, String fieldName) {
-    if (value == null || value.trim().isEmpty) {
-      return '$fieldName is required';
+  Future<void> _registerConsumer() async {
+    setState(() => _isLoading = true);
+    try {
+      final emailRes = await http.post(
+        Uri.parse('$baseUrl/customer/customer/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': _emailCtrl.text.trim()}),
+      );
+
+      print('📩 Email Registration Status: ${emailRes.statusCode}');
+      print('📩 Email Response: ${emailRes.body}');
+
+      if (emailRes.statusCode != 200 && emailRes.statusCode != 201) {
+        throw Exception('Email registration failed');
+      }
+
+      final addressRes = await http.post(
+        Uri.parse('$baseUrl/customer/customer/addresses'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'address_line': _addressCtrl.text.trim()}),
+      );
+
+      print('🏠 Address Status: ${addressRes.statusCode}');
+      print('🏠 Address Response: ${addressRes.body}');
+
+      if (addressRes.statusCode != 200 && addressRes.statusCode != 201) {
+        throw Exception('Address creation failed');
+      }
+
+      final profileRes = await http.put(
+        Uri.parse('$baseUrl/customer/customer/profile'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'first_name': _firstNameCtrl.text.trim(),
+          'last_name': _lastNameCtrl.text.trim(),
+          'phone': _contactNumberCtrl.text.trim(),
+        }),
+      );
+
+      print('👤 Profile Status: ${profileRes.statusCode}');
+      print('👤 Profile Response: ${profileRes.body}');
+
+      if (profileRes.statusCode != 200 && profileRes.statusCode != 201) {
+        throw Exception('Profile update failed');
+      }
+
+      Navigator.pushReplacementNamed(context, AppRoutes.emailverification);
+    } catch (e) {
+      print('❌ Error: $e');
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Registration Error'),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
-    return null;
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Email address is required';
-    }
+  String? _validateRequired(String? value, String fieldName) =>
+      (value == null || value.trim().isEmpty) ? '$fieldName is required' : null;
 
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    if (!emailRegex.hasMatch(value.trim())) {
-      return 'Enter a valid email address';
-    }
-    return null;
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'Email address is required';
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    return emailRegex.hasMatch(email) ? null : 'Enter a valid email address';
   }
 
   String? _validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Contact number is required';
-    }
-
-    final trimmed = value.trim();
-    final localRegex = RegExp(r'^09\d{9}$');
-
-    if (!localRegex.hasMatch(trimmed)) {
-      return 'Enter a valid PH number (e.g. 09123456789)';
-    }
-
-    return null;
+    final phone = value?.trim() ?? '';
+    final regex = RegExp(r'^09\d{9}$');
+    return phone.isEmpty
+        ? 'Contact number is required'
+        : (!regex.hasMatch(phone) ? 'Enter a valid PH number (e.g. 09123456789)' : null);
   }
 
   @override
@@ -109,7 +153,6 @@ class _ConsumerRegistrationScreenState
       body: SafeArea(
         child: Stack(
           children: [
-            // ── Curved white card area ──
             Positioned.fill(
               top: 100,
               child: Container(
@@ -119,10 +162,7 @@ class _ConsumerRegistrationScreenState
                   borderRadius: BorderRadius.only(topLeft: Radius.circular(80)),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 28,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
                   child: SingleChildScrollView(
                     child: Form(
                       key: _formKey,
@@ -130,37 +170,30 @@ class _ConsumerRegistrationScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 24),
-
                           _buildFieldLabel('First Name'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _firstNameCtrl,
                             decoration: _fieldDecoration('Enter first name'),
-                            validator: (value) =>
-                                _validateRequired(value, 'First name'),
+                            validator: (val) => _validateRequired(val, 'First name'),
                           ),
                           const SizedBox(height: 24),
-
                           _buildFieldLabel('Last Name'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _lastNameCtrl,
                             decoration: _fieldDecoration('Enter last name'),
-                            validator: (value) =>
-                                _validateRequired(value, 'Last name'),
+                            validator: (val) => _validateRequired(val, 'Last name'),
                           ),
                           const SizedBox(height: 24),
-
                           _buildFieldLabel('Address'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _addressCtrl,
                             decoration: _fieldDecoration('Enter your address'),
-                            validator: (value) =>
-                                _validateRequired(value, 'Address'),
+                            validator: (val) => _validateRequired(val, 'Address'),
                           ),
                           const SizedBox(height: 24),
-
                           _buildFieldLabel('Email Address'),
                           const SizedBox(height: 6),
                           TextFormField(
@@ -170,7 +203,6 @@ class _ConsumerRegistrationScreenState
                             validator: _validateEmail,
                           ),
                           const SizedBox(height: 24),
-
                           _buildFieldLabel('Contact Number'),
                           const SizedBox(height: 6),
                           TextFormField(
@@ -180,48 +212,31 @@ class _ConsumerRegistrationScreenState
                             validator: _validatePhone,
                           ),
                           const SizedBox(height: 40),
-
-                          // Register Button or Loader
                           SizedBox(
                             width: double.infinity,
                             height: 56,
                             child: _isLoading
                                 ? const Center(
                                     child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF002F6C),
-                                      ),
+                                      valueColor:
+                                          AlwaysStoppedAnimation(Color(0xFF002F6C)),
                                     ),
                                   )
                                 : ElevatedButton(
                                     onPressed: () {
-                                      if (_formKey.currentState?.validate() ??
-                                          false) {
-                                        setState(() => _isLoading = true);
-
-                                        Future.delayed(
-                                            const Duration(seconds: 1), () {
-                                          Navigator.pushNamed(
-                                            context,
-                                            AppRoutes.emailverification,
-                                          );
-                                          setState(() => _isLoading = false);
-                                        });
+                                      if (_formKey.currentState?.validate() ?? false) {
+                                        _registerConsumer();
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF002F6C),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(18),
+                                        borderRadius: BorderRadius.circular(18),
                                       ),
                                     ),
                                     child: const Text(
                                       'Register',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        color: Colors.white,
-                                      ),
+                                      style: TextStyle(fontSize: 20, color: Colors.white),
                                     ),
                                   ),
                           ),
@@ -232,8 +247,6 @@ class _ConsumerRegistrationScreenState
                 ),
               ),
             ),
-
-            // ── Title Text ──
             const Positioned(
               top: 40,
               left: 0,
