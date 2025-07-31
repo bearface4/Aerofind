@@ -21,7 +21,7 @@ class _ConsumerRegistrationScreenState
   final _contactNumberCtrl = TextEditingController();
   bool _isLoading = false;
 
-  final baseUrl = 'http://10.0.2.2:8000'; // Android emulator local address
+  final baseUrl = 'https://aerofind-api.onrender.com'; // deployed api site
 
   @override
   void dispose() {
@@ -78,10 +78,16 @@ class _ConsumerRegistrationScreenState
       }
 
       final addressRes = await http.post(
-        Uri.parse('$baseUrl/customer/customer/addresses'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'address_line': _addressCtrl.text.trim()}),
-      );
+      Uri.parse('$baseUrl/customer/customer/addresses'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'label': 'N/A',
+        'address_line': _addressCtrl.text.trim(),
+        'barangay': 'N/A',
+        'city': 'N/A',
+        'is_default': true,
+      }),
+    );
 
       print('🏠 Address Status: ${addressRes.statusCode}');
       print('🏠 Address Response: ${addressRes.body}');
@@ -90,15 +96,17 @@ class _ConsumerRegistrationScreenState
         throw Exception('Address creation failed');
       }
 
-      final profileRes = await http.put(
-        Uri.parse('$baseUrl/customer/customer/profile'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'first_name': _firstNameCtrl.text.trim(),
-          'last_name': _lastNameCtrl.text.trim(),
-          'phone': _contactNumberCtrl.text.trim(),
-        }),
-      );
+       final profileRes = await http.put(
+      Uri.parse('$baseUrl/customer/customer/profile'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'first_name': _firstNameCtrl.text.trim(),
+        'last_name': _lastNameCtrl.text.trim(),
+        'middle_name': '',
+        'suffix': '',
+        'phone': _contactNumberCtrl.text.trim(),
+      }),
+    );
 
       print('👤 Profile Status: ${profileRes.statusCode}');
       print('👤 Profile Response: ${profileRes.body}');
