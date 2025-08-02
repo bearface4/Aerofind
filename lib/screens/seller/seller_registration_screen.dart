@@ -91,7 +91,7 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
   }
 
   Future<void> _registerSeller() async {
-    final url = Uri.parse('http://10.0.2.2:8000/seller/register');
+    final url = Uri.parse('https://aerofind-api.onrender.com/seller/register');// deployed api
 
     try {
       final response = await http.post(

@@ -19,7 +19,7 @@ class _ConsumerRegistrationScreenState
   final _addressCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _contactNumberCtrl = TextEditingController();
-  bool _isLoading = false;
+  bool _isLoading = false; 
 
   final baseUrl = 'https://aerofind-api.onrender.com'; // deployed api site
 
