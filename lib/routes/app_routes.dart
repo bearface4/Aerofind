@@ -23,6 +23,7 @@ import '../screens/consumer/consumer_cart_page.dart';
 import '../screens/consumer/consumer_checkout_page.dart';
 import '../screens/consumer/consumer_delivery_address.dart';
 import '../screens/consumer/consumer_store_viewer.dart';
+import '../screens/consumer/consumer_track_view.dart';
 
 class AppRoutes {
   // Route name constants
@@ -50,6 +51,7 @@ class AppRoutes {
   static const String consumercheckout = '/consumercheckout';
   static const String consumerdelivery = '/consumerdelivery';
   static const String consumerstoreview = '/consumerstoreview';
+  static const String consumertrackview = '/consumertrackview';
 
   // Route map
   static final Map<String, WidgetBuilder> routes = {
@@ -77,5 +79,6 @@ class AppRoutes {
     consumercheckout: (context) => ConsumerCheckoutPage(),
     consumerdelivery: (context) => ConsumerDeliveryAddress(),
     consumerstoreview: (context) => ConsumerStoreViewer(),
+    consumertrackview: (context) => ConsumerTrackViewPage(),
   };
 }

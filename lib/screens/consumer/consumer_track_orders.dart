@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerTrackOrdersPage extends StatelessWidget {
   const ConsumerTrackOrdersPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final orders = [
+    final List<Map<String, dynamic>> orders = [
       {
         'title': '1x Burger Steak',
         'note': 'none',
         'price': '₱ 149.00',
         'image': 'assets/burgersteak.jpg',
         'status': 'Ongoing',
+        'isClickable': true,
       },
       {
         'title': 'Cheeze Supreme',
@@ -19,6 +21,7 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
         'price': '₱ 70.00',
         'image': 'assets/cheeze.jpg',
         'status': '1d',
+        'isClickable': false,
       },
       {
         'title': 'B1T1 Choco Krunch',
@@ -26,6 +29,7 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
         'price': '₱ 70.00',
         'image': 'assets/chococrunch.jpg',
         'status': '5d',
+        'isClickable': false,
       },
     ];
 
@@ -70,15 +74,21 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
                   ),
                   itemBuilder: (context, index) {
                     final item = orders[index];
-                    final isOngoing = item['status'] == 'Ongoing';
+                    final String title = item['title'] as String;
+                    final String note = item['note'] as String;
+                    final String price = item['price'] as String;
+                    final String image = item['image'] as String;
+                    final String status = item['status'] as String;
+                    final bool isClickable = item['isClickable'] ?? false;
+                    final bool isOngoing = status == 'Ongoing';
 
-                    return Row(
+                    final rowContent = Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Image.asset(
-                            item['image']!,
+                            image,
                             width: 100,
                             height: 100,
                             fit: BoxFit.cover,
@@ -91,15 +101,14 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
-                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 4),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        item['title']!,
+                                        title,
                                         style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -107,7 +116,7 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Note: ${item['note']}',
+                                        'Note: $note',
                                         style: const TextStyle(
                                           fontSize: 14,
                                           color: Colors.black54,
@@ -120,13 +129,14 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
                                             'Total: ',
                                             style: TextStyle(
                                               fontSize: 16,
-                                              fontWeight: FontWeight.w500,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                           Text(
-                                            item['price']!,
+                                            price,
                                             style: const TextStyle(
                                               fontSize: 16,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ],
@@ -138,7 +148,7 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
                               Padding(
                                 padding: const EdgeInsets.only(top: 9),
                                 child: Text(
-                                  item['status']!,
+                                  status,
                                   style: TextStyle(
                                     color: isOngoing
                                         ? const Color(0xFF002F6C)
@@ -153,6 +163,16 @@ class ConsumerTrackOrdersPage extends StatelessWidget {
                         ),
                       ],
                     );
+
+                    return isClickable
+                        ? GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(
+                                  context, AppRoutes.consumertrackview);
+                            },
+                            child: rowContent,
+                          )
+                        : rowContent;
                   },
                 ),
               ),
