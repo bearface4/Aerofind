@@ -19,9 +19,9 @@ class _ConsumerRegistrationScreenState
   final _addressCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _contactNumberCtrl = TextEditingController();
-  bool _isLoading = false; 
+  bool _isLoading = false;
 
-  final baseUrl = 'https://aerofind-api.onrender.com'; // deployed api site
+  final baseUrl = 'https://aerofind-api.onrender.com/customer/register'; // deployed register
 
   @override
   void dispose() {
@@ -63,61 +63,39 @@ class _ConsumerRegistrationScreenState
 
   Future<void> _registerConsumer() async {
     setState(() => _isLoading = true);
+
+    final body = {
+      "first_name": _firstNameCtrl.text.trim(),
+      "last_name": _lastNameCtrl.text.trim(),
+      "middle_name": "N/A",
+      "suffix": "N/A",
+      "email": _emailCtrl.text.trim(),
+      "phone": _contactNumberCtrl.text.trim(),
+      "address": {
+        "label": "N/A",
+        "address_line": _addressCtrl.text.trim(),
+        "barangay": "N/A",
+        "city": "N/A",
+        "is_default": false
+      }
+    };
+
     try {
-      final emailRes = await http.post(
-        Uri.parse('$baseUrl/customer/customer/register'),
+      final response = await http.post(
+        Uri.parse('$baseUrl/customer/register'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': _emailCtrl.text.trim()}),
+        body: jsonEncode(body),
       );
 
-      print('📩 Email Registration Status: ${emailRes.statusCode}');
-      print('📩 Email Response: ${emailRes.body}');
+      print('📩 Registration Response: ${response.statusCode}');
+      print('📩 Body: ${response.body}');
 
-      if (emailRes.statusCode != 200 && emailRes.statusCode != 201) {
-        throw Exception('Email registration failed');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Navigator.pushReplacementNamed(context, AppRoutes.emailverification);
+      } else {
+        throw Exception('Registration failed: ${response.body}');
       }
-
-      final addressRes = await http.post(
-      Uri.parse('$baseUrl/customer/customer/addresses'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'label': 'N/A',
-        'address_line': _addressCtrl.text.trim(),
-        'barangay': 'N/A',
-        'city': 'N/A',
-        'is_default': true,
-      }),
-    );
-
-      print('🏠 Address Status: ${addressRes.statusCode}');
-      print('🏠 Address Response: ${addressRes.body}');
-
-      if (addressRes.statusCode != 200 && addressRes.statusCode != 201) {
-        throw Exception('Address creation failed');
-      }
-
-       final profileRes = await http.put(
-      Uri.parse('$baseUrl/customer/customer/profile'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'first_name': _firstNameCtrl.text.trim(),
-        'last_name': _lastNameCtrl.text.trim(),
-        'middle_name': '',
-        'suffix': '',
-        'phone': _contactNumberCtrl.text.trim(),
-      }),
-    );
-
-      print('👤 Profile Status: ${profileRes.statusCode}');
-      print('👤 Profile Response: ${profileRes.body}');
-
-      if (profileRes.statusCode != 200 && profileRes.statusCode != 201) {
-        throw Exception('Profile update failed');
-      }
-
-      Navigator.pushReplacementNamed(context, AppRoutes.emailverification);
     } catch (e) {
-      print('❌ Error: $e');
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
