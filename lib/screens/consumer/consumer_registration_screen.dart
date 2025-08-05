@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:aerofind/routes/app_routes.dart';
+import 'package:flutter/services.dart';
 
 class ConsumerRegistrationScreen extends StatefulWidget {
   const ConsumerRegistrationScreen({super.key});
@@ -21,7 +22,7 @@ class _ConsumerRegistrationScreenState
   final _contactNumberCtrl = TextEditingController();
   bool _isLoading = false;
 
-  final baseUrl = 'https://aerofind-api.onrender.com/customer/register'; // deployed register
+  final baseUrl = 'https://aerofind-api.onrender.com'; // deployed
 
   @override
   void dispose() {
@@ -36,10 +37,11 @@ class _ConsumerRegistrationScreenState
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+      hintStyle: const TextStyle(
+        color: Colors.grey,
+        fontStyle: FontStyle.italic,
       ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderSide: BorderSide(color: Colors.grey.shade500),
         borderRadius: BorderRadius.circular(10),
@@ -56,7 +58,9 @@ class _ConsumerRegistrationScreenState
       text: TextSpan(
         text: label,
         style: const TextStyle(color: Colors.grey, fontSize: 15),
-        children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+        children: const [
+          TextSpan(text: ' *', style: TextStyle(color: Colors.red)),
+        ],
       ),
     );
   }
@@ -76,8 +80,8 @@ class _ConsumerRegistrationScreenState
         "address_line": _addressCtrl.text.trim(),
         "barangay": "N/A",
         "city": "N/A",
-        "is_default": false
-      }
+        "is_default": false,
+      },
     };
 
     try {
@@ -91,23 +95,32 @@ class _ConsumerRegistrationScreenState
       print('📩 Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pushReplacementNamed(context, AppRoutes.emailverification);
+        final responseData = jsonDecode(response.body);
+        final otp = responseData['otp'];
+
+        await Clipboard.setData(ClipboardData(text: otp));
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.emailverification,
+          arguments: {'otp': otp, 'email': _emailCtrl.text.trim()},
+        );
       } else {
         throw Exception('Registration failed: ${response.body}');
       }
     } catch (e) {
       showDialog(
         context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Registration Error'),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
+        builder:
+            (_) => AlertDialog(
+              title: const Text('Registration Error'),
+              content: Text(e.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
-          ],
-        ),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -120,7 +133,9 @@ class _ConsumerRegistrationScreenState
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
     if (email.isEmpty) return 'Email address is required';
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
     return emailRegex.hasMatch(email) ? null : 'Enter a valid email address';
   }
 
@@ -129,7 +144,9 @@ class _ConsumerRegistrationScreenState
     final regex = RegExp(r'^09\d{9}$');
     return phone.isEmpty
         ? 'Contact number is required'
-        : (!regex.hasMatch(phone) ? 'Enter a valid PH number (e.g. 09123456789)' : null);
+        : (!regex.hasMatch(phone)
+            ? 'Enter a valid PH number (e.g. 09123456789)'
+            : null);
   }
 
   @override
@@ -148,7 +165,10 @@ class _ConsumerRegistrationScreenState
                   borderRadius: BorderRadius.only(topLeft: Radius.circular(80)),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 28,
+                  ),
                   child: SingleChildScrollView(
                     child: Form(
                       key: _formKey,
@@ -161,7 +181,8 @@ class _ConsumerRegistrationScreenState
                           TextFormField(
                             controller: _firstNameCtrl,
                             decoration: _fieldDecoration('Enter first name'),
-                            validator: (val) => _validateRequired(val, 'First name'),
+                            validator:
+                                (val) => _validateRequired(val, 'First name'),
                           ),
                           const SizedBox(height: 24),
                           _buildFieldLabel('Last Name'),
@@ -169,7 +190,8 @@ class _ConsumerRegistrationScreenState
                           TextFormField(
                             controller: _lastNameCtrl,
                             decoration: _fieldDecoration('Enter last name'),
-                            validator: (val) => _validateRequired(val, 'Last name'),
+                            validator:
+                                (val) => _validateRequired(val, 'Last name'),
                           ),
                           const SizedBox(height: 24),
                           _buildFieldLabel('Address'),
@@ -177,7 +199,8 @@ class _ConsumerRegistrationScreenState
                           TextFormField(
                             controller: _addressCtrl,
                             decoration: _fieldDecoration('Enter your address'),
-                            validator: (val) => _validateRequired(val, 'Address'),
+                            validator:
+                                (val) => _validateRequired(val, 'Address'),
                           ),
                           const SizedBox(height: 24),
                           _buildFieldLabel('Email Address'),
@@ -193,7 +216,9 @@ class _ConsumerRegistrationScreenState
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _contactNumberCtrl,
-                            decoration: _fieldDecoration('Enter contact number'),
+                            decoration: _fieldDecoration(
+                              'Enter contact number',
+                            ),
                             keyboardType: TextInputType.phone,
                             validator: _validatePhone,
                           ),
@@ -201,30 +226,40 @@ class _ConsumerRegistrationScreenState
                           SizedBox(
                             width: double.infinity,
                             height: 56,
-                            child: _isLoading
-                                ? const Center(
-                                    child: CircularProgressIndicator(
-                                      valueColor:
-                                          AlwaysStoppedAnimation(Color(0xFF002F6C)),
-                                    ),
-                                  )
-                                : ElevatedButton(
-                                    onPressed: () {
-                                      if (_formKey.currentState?.validate() ?? false) {
-                                        _registerConsumer();
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF002F6C),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(18),
+                            child:
+                                _isLoading
+                                    ? const Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation(
+                                          Color(0xFF002F6C),
+                                        ),
+                                      ),
+                                    )
+                                    : ElevatedButton(
+                                      onPressed: () {
+                                        if (_formKey.currentState?.validate() ??
+                                            false) {
+                                          _registerConsumer();
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF002F6C,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            18,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Register',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
-                                    child: const Text(
-                                      'Register',
-                                      style: TextStyle(fontSize: 20, color: Colors.white),
-                                    ),
-                                  ),
                           ),
                         ],
                       ),
