@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:aerofind/routes/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,6 +15,9 @@ class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<Offset> _slideAnimation;
+
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
 
   bool _isLoading = false;
 
@@ -35,20 +41,81 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _emailController.dispose();
     super.dispose();
+  }
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'Email address is required';
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    return emailRegex.hasMatch(email) ? null : 'Enter a valid email address';
+  }
+
+  Future<void> _submit() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() => _isLoading = true);
+
+      try {
+        final email = _emailController.text.trim();
+        print('🔃 Sending login OTP request for email: $email');
+
+        final response = await http.post(
+          Uri.parse(
+            'https://aerofind-api.onrender.com/customer/request-login-otp?email=$email',
+          ),
+        );
+
+        print('📥 Response Code: ${response.statusCode}');
+        print('📥 Response Body: ${response.body}');
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final otp = data['otp'];
+          print('✅ OTP received: $otp');
+
+          if (otp != null && otp.length == 6) {
+            await Clipboard.setData(ClipboardData(text: otp));
+            print('📋 OTP copied to clipboard.');
+          }
+
+          Navigator.pushNamed(
+            context,
+            AppRoutes.loginotp,
+            arguments: {'email': email, 'otp': otp},
+          );
+        } else {
+          final msg =
+              jsonDecode(response.body)['message'] ?? 'Something went wrong.';
+          print('❌ Login failed: $msg');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
+        print('❗ Network error: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Network error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // ────────── Logo & background ──────────
               Container(
                 width: double.infinity,
                 height: 400,
@@ -63,8 +130,6 @@ class _LoginScreenState extends State<LoginScreen>
                   children: [Image.asset('assets/logo.png', height: 350)],
                 ),
               ),
-
-              // ────────── Animated card ──────────
               SlideTransition(
                 position: _slideAnimation,
                 child: Transform.translate(
@@ -79,7 +144,6 @@ class _LoginScreenState extends State<LoginScreen>
                       color: Colors.white,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(40),
-                        topRight: Radius.circular(0),
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -89,107 +153,101 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Login',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // ────────── Email input ──────────
-                        TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Email',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black,
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF002F6C),
-                                width: 2,
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _emailController,
+                            validator: _validateEmail,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              hintText: 'Email',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // ────────── Login button or loader ──────────
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: _isLoading
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF002F6C),
-                                    ),
-                                  ),
-                                )
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF002F6C),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    setState(() => _isLoading = true);
-
-                                    // Simulate loading
-                                    Future.delayed(const Duration(seconds: 1),
-                                        () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        AppRoutes.loginotp,
-                                      );
-                                      setState(() => _isLoading = false);
-                                    });
-                                  },
-                                  child: const Text(
-                                    'Login',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF002F6C),
+                                  width: 2,
                                 ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // ────────── Register prompt ──────────
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.roleselection,
-                              );
-                            },
-                            child: const Text.rich(
-                              TextSpan(
-                                text: "Don’t have an account yet? ",
-                                children: [
-                                  TextSpan(
-                                    text: "Register Here.",
-                                    style: TextStyle(
-                                      fontStyle: FontStyle.italic,
-                                      color: Color(0xFF002F6C),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child:
+                                _isLoading
+                                    ? const Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Color(0xFF002F6C),
+                                            ),
+                                      ),
+                                    )
+                                    : ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF002F6C,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                      ),
+                                      onPressed: _submit,
+                                      child: const Text(
+                                        'Login',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                          ),
+                          const SizedBox(height: 24),
+                          Center(
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.roleselection,
+                                );
+                              },
+                              child: const Text.rich(
+                                TextSpan(
+                                  text: "Don’t have an account yet? ",
+                                  children: [
+                                    TextSpan(
+                                      text: "Register Here.",
+                                      style: TextStyle(
+                                        fontStyle: FontStyle.italic,
+                                        color: Color(0xFF002F6C),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
