@@ -61,10 +61,18 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                     ),
                   ),
                   const Spacer(),
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.deepOrangeAccent,
-                    size: 24,
+                  GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => _buildReportDialog(context),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.deepOrangeAccent,
+                      size: 24,
+                    ),
                   ),
                 ],
               ),
@@ -115,30 +123,29 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               const SizedBox(height: 4),
 
               // Vendor
-            GestureDetector(
-                  onTap: () {
-                    Navigator.pushNamed(context, AppRoutes.consumerstoreview);
-                  },
-                  child: Row(
-                    children: const [
-                      Text(
-                        'Talpak Wings PH',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(
-                        Icons.open_in_new,
-                        size: 14,
+              GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, AppRoutes.consumerstoreview);
+                },
+                child: Row(
+                  children: const [
+                    Text(
+                      'Talpak Wings PH',
+                      style: TextStyle(
+                        fontSize: 13,
                         color: Colors.grey,
+                        decoration: TextDecoration.underline,
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.open_in_new,
+                      size: 14,
+                      color: Colors.grey,
+                    ),
+                  ],
                 ),
-
+              ),
 
               const SizedBox(height: 16),
 
@@ -261,6 +268,90 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
         icon: Icon(icon, size: 20, color: Colors.black),
         onPressed: onTap,
       ),
+    );
+  }
+
+  Widget _buildReportDialog(BuildContext context) {
+    final TextEditingController _reportController = TextEditingController();
+    final Color primaryColor = const Color(0xFF001F5B); // Navy blue
+
+    bool _isReporting = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          insetPadding: const EdgeInsets.all(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Center(
+                  child: Text(
+                    'Report Product',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "If you believe there's an issue with this product, please let us know. Provide a brief reason for reporting this product in the field below.",
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _reportController,
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    hintText: "Input reason here",
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: _isReporting
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF002363),
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : ElevatedButton(
+                          onPressed: () {
+                            setState(() => _isReporting = true);
+                            Future.delayed(const Duration(seconds: 2), () {
+                              Navigator.pop(context); // close dialog
+                              Navigator.pushReplacementNamed(context, AppRoutes.consumerreportsub);
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Submit report',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
