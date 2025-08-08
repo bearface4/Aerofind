@@ -26,12 +26,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token') ?? '';
-      print('🔐 Access token: $token');
-
-      if (token.isEmpty) {
-        print('❌ Token missing');
-        return;
-      }
+      if (token.isEmpty) return;
 
       final response = await http.get(
         Uri.parse('https://aerofind-api.onrender.com/customer/cart'),
@@ -41,9 +36,6 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
         },
       );
 
-      print('📡 API Status: ${response.statusCode}');
-      print('📥 Response: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
@@ -51,23 +43,80 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
           isLoading = false;
         });
       } else {
-        print('⚠️ Failed to fetch cart');
         setState(() => isLoading = false);
       }
     } catch (e) {
-      print('🚨 Error: $e');
       setState(() => isLoading = false);
     }
   }
 
-  void updateQuantity(int index, int change) {
-    setState(() {
-      final current = cartItems[index]['quantity'];
-      final newQuantity = current + change;
-      if (newQuantity > 0) {
-        cartItems[index]['quantity'] = newQuantity;
+  Future<void> updateQuantityInBackend(int itemId, int newQuantity) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token') ?? '';
+
+    if (newQuantity < 1) {
+      // Quantity is 0 - delete the item
+      final deleteResponse = await http.delete(
+        Uri.parse(
+          'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (deleteResponse.statusCode == 200) {
+        await fetchCartItems();
+        showSnackBar("Item removed from cart");
+      } else {
+        debugPrint('Failed to delete item: ${deleteResponse.statusCode}');
       }
-    });
+
+      return;
+    }
+
+    // Update quantity
+    try {
+      final response = await http.put(
+        Uri.parse(
+          'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'quantity': newQuantity}),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchCartItems();
+        showSnackBar("Quantity updated");
+      } else {
+        debugPrint('Failed to update quantity: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error updating quantity: $e');
+    }
+  }
+
+  void onQuantityChange(int index, int change) {
+    final item = cartItems[index];
+    final currentQuantity = item['quantity'] ?? 1;
+    final newQuantity = currentQuantity + change;
+    final itemId = item['id'];
+
+    updateQuantityInBackend(itemId, newQuantity);
+  }
+
+  void showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -139,14 +188,14 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                           '₱ ${product['price'].toString()}',
                           product['image_url'] ?? '',
                           quantity,
-                          () => updateQuantity(index, -1),
-                          () => updateQuantity(index, 1),
+                          () => onQuantityChange(index, -1),
+                          () => onQuantityChange(index, 1),
                         );
                       },
                     ),
                   ),
 
-                  // Subtotal and Delivery
+                  // Subtotal & Delivery Fee
                   Container(
                     decoration: const BoxDecoration(
                       color: Color(0xFFF0F6FF),
@@ -171,7 +220,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                     ),
                   ),
 
-                  // Total & Checkout
+                  // Total & Checkout Button
                   Container(
                     decoration: const BoxDecoration(
                       color: Color(0xFFE0EBFF),

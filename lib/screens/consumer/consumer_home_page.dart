@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerHomePage extends StatefulWidget {
