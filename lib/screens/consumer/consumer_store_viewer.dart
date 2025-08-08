@@ -1,33 +1,52 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
-class ConsumerStoreViewer extends StatelessWidget {
-  final List<Map<String, String>> menuItems = [
-    {
-      'name': 'Burger Steak',
-      'price': '₱200',
-      'image': 'assets/burgersteak.jpg',
-      'rating': '4.9',
-    },
-    {
-      'name': 'Chicken Wings',
-      'price': '₱200',
-      'image': 'assets/chickenwings.jpg',
-      'rating': '4.8',
-    },
-    {
-      'name': 'Porkchop',
-      'price': '₱200',
-      'image': 'assets/porkchop.webp',
-      'rating': '4.7',
-    },
-    {
-      'name': 'Creamy Pepper Beef',
-      'price': '₱200',
-      'image': 'assets/creamybeef.jpg',
-      'rating': '4.9',
-    },
-  ];
+class ConsumerStoreViewer extends StatefulWidget {
+  @override
+  _ConsumerStoreViewerState createState() => _ConsumerStoreViewerState();
+}
+
+class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
+  List<dynamic> products = [];
+  bool isLoading = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+    final sellerId = args?['seller_id'];
+
+    if (sellerId != null) {
+      fetchProducts(sellerId);
+    }
+  }
+
+  Future<void> fetchProducts(int sellerId) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    final response = await http.get(
+      Uri.parse(
+        'https://aerofind-api.onrender.com/customer/seller/$sellerId/products',
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        products = json.decode(response.body);
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+      print('Failed to load products');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,28 +58,22 @@ class ConsumerStoreViewer extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  Stack(
-                    children: [
-                      Image.asset(
-                        'assets/talpakbanner.jpg',
-                        width: double.infinity,
-                        height: 220,
-                        fit: BoxFit.cover,
-                      ),
-                      Container(
-                        width: double.infinity,
-                        height: 220,
-                        color: Colors.black.withOpacity(
-                          0.4,
-                        ), // adjust opacity as needed
-                      ),
-                    ],
+                  Image.asset(
+                    'assets/powermac.webp',
+                    width: double.infinity,
+                    height: 220,
+                    fit: BoxFit.cover,
+                  ),
+                  Container(
+                    width: double.infinity,
+                    height: 220,
+                    color: Colors.black.withOpacity(0.4),
                   ),
                   Positioned(
                     top: 40,
                     left: 16,
                     child: Container(
-                      padding: EdgeInsets.all(1), // control the background size
+                      padding: EdgeInsets.all(1),
                       decoration: BoxDecoration(
                         color: Colors.white70,
                         shape: BoxShape.circle,
@@ -68,8 +81,7 @@ class ConsumerStoreViewer extends StatelessWidget {
                       child: IconButton(
                         icon: Icon(Icons.arrow_back_ios, size: 16),
                         padding: EdgeInsets.zero,
-                        constraints:
-                            BoxConstraints(), // remove default button constraints
+                        constraints: BoxConstraints(),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
@@ -78,25 +90,30 @@ class ConsumerStoreViewer extends StatelessWidget {
               ),
               SizedBox(height: 120),
               Expanded(
-                child: GridView.builder(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: menuItems.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 20,
-                    crossAxisSpacing: 20,
-                    childAspectRatio: 0.65,
-                  ),
-                  itemBuilder: (context, index) {
-                    final item = menuItems[index];
-                    return MenuCard(
-                      image: item['image']!,
-                      name: item['name']!,
-                      price: item['price']!,
-                      rating: item['rating']!,
-                    );
-                  },
-                ),
+                child:
+                    isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : GridView.builder(
+                          padding: EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: products.length,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 20,
+                                crossAxisSpacing: 20,
+                                childAspectRatio: 0.65,
+                              ),
+                          itemBuilder: (context, index) {
+                            final item = products[index];
+                            final imageUrl = item['image_url'] ?? '';
+                            return MenuCard(
+                              imageUrl: imageUrl,
+                              name: item['name'] ?? 'Unknown',
+                              price: '₱${item['price'] ?? '0'}',
+                              rating: (item['rating']?.toString() ?? '4.0'),
+                            );
+                          },
+                        ),
               ),
             ],
           ),
@@ -121,14 +138,14 @@ class StoreCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Image.asset('assets/talpaklogo.jpg', width: 60, height: 60),
+          Image.asset('assets/powerlogo.png', width: 60, height: 60),
           SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Talpak Wings PH',
+                  'Power Mac Store',
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -158,7 +175,7 @@ class StoreCard extends StatelessWidget {
                   children: [
                     Icon(Icons.delivery_dining, size: 16, color: Colors.grey),
                     SizedBox(width: 4),
-                    Text('\u20B1 50', style: GoogleFonts.poppins(fontSize: 13)),
+                    Text('₱ 50', style: GoogleFonts.poppins(fontSize: 13)),
                   ],
                 ),
               ],
@@ -171,13 +188,13 @@ class StoreCard extends StatelessWidget {
 }
 
 class MenuCard extends StatelessWidget {
-  final String image;
+  final String imageUrl;
   final String name;
   final String price;
   final String rating;
 
   const MenuCard({
-    required this.image,
+    required this.imageUrl,
     required this.name,
     required this.price,
     required this.rating,
@@ -185,6 +202,7 @@ class MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNetworkImage = imageUrl.startsWith('http');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -192,12 +210,28 @@ class MenuCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                image,
-                width: double.infinity,
-                height: 150,
-                fit: BoxFit.cover,
-              ),
+              child:
+                  isNetworkImage
+                      ? Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        height: 150,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            'assets/placeholder.jpg',
+                            width: double.infinity,
+                            height: 150,
+                            fit: BoxFit.cover,
+                          );
+                        },
+                      )
+                      : Image.asset(
+                        'assets/placeholder.jpg',
+                        width: double.infinity,
+                        height: 150,
+                        fit: BoxFit.cover,
+                      ),
             ),
             Positioned(
               bottom: 8,
@@ -229,7 +263,7 @@ class MenuCard extends StatelessWidget {
         SizedBox(height: 6),
         Text(
           name,
-          style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w500),
+          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 2),
         Text(

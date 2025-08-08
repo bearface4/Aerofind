@@ -10,14 +10,32 @@ class ConsumerReportPage extends StatefulWidget {
 }
 
 class _ConsumerReportPageState extends State<ConsumerReportPage> {
-  @override
-  void initState() {
-    super.initState();
+  int? itemId;
 
-    // Delay 2 seconds then navigate back
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacementNamed(context, AppRoutes.consumeritem);
-    });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args != null && args is Map && args.containsKey('id')) {
+      final dynamic idValue = args['id'];
+      if (idValue is int) {
+        itemId = idValue;
+      } else if (idValue is String && int.tryParse(idValue) != null) {
+        itemId = int.parse(idValue);
+      }
+
+      if (itemId != null) {
+        Future.delayed(const Duration(seconds: 4), () {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.consumeritem,
+            arguments: {'id': itemId},
+            (route) => false,
+          );
+        });
+      }
+    }
   }
 
   @override
@@ -30,15 +48,12 @@ class _ConsumerReportPageState extends State<ConsumerReportPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Lottie animation
               Lottie.network(
                 'https://lottie.host/7c0854f6-b16c-4231-81a6-ffdb7d2262b4/MMzQXQ405E.json',
                 height: 200,
                 width: 200,
               ),
               const SizedBox(height: 40),
-
-              // Title
               const Text(
                 'Report Submitted',
                 style: TextStyle(
@@ -48,15 +63,10 @@ class _ConsumerReportPageState extends State<ConsumerReportPage> {
                 ),
               ),
               const SizedBox(height: 12),
-
-              // Subtext
               const Text(
                 'Report was successfully submitted and will be\nsent to the barangay admins.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.black87),
               ),
             ],
           ),

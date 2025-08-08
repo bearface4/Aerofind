@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerItemDetails extends StatefulWidget {
@@ -10,11 +12,54 @@ class ConsumerItemDetails extends StatefulWidget {
 
 class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
   int quantity = 1;
-  TextEditingController noteController = TextEditingController();
+  final TextEditingController noteController = TextEditingController();
+
+  Map<String, dynamic>? productData;
+  bool isLoading = true;
+  int? productId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    productId = args['id'];
+    fetchProductDetails(productId!);
+  }
+
+  Future<void> fetchProductDetails(int id) async {
+    final url = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/products/$id',
+    );
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      setState(() {
+        productData = json.decode(response.body);
+        isLoading = false;
+      });
+    } else {
+      setState(() => isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = const Color(0xFF001F5B); // Navy blue
+    final Color primaryColor = const Color(0xFF001F5B);
+
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (productData == null) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: Text('Failed to load product details.')),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -26,7 +71,6 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
             children: [
               // Top Bar
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
@@ -39,28 +83,29 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                       ),
                     ),
                   ),
-                  const Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Item',
-                          style: TextStyle(
-                            color: Color(0xFF002363),
-                            fontWeight: FontWeight.w600,
+                  const Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Item',
+                            style: TextStyle(
+                              color: Color(0xFF002363),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        TextSpan(
-                          text: ' Details',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w600,
+                          TextSpan(
+                            text: ' Details',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                      style: TextStyle(fontSize: 20),
+                        ],
+                        style: TextStyle(fontSize: 20),
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   GestureDetector(
                     onTap: () {
                       showDialog(
@@ -81,8 +126,8 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               // Product Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/chickenwings.jpg',
+                child: Image.network(
+                  productData!['image_url'],
                   width: double.infinity,
                   height: 300,
                   fit: BoxFit.cover,
@@ -90,76 +135,85 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               ),
               const SizedBox(height: 24),
 
-              // Title + Rating + Heart
+              // Title + Rating + Favorite
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Chicken wings',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Text(
+                      productData!['name'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange[50],
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
-                      children: const [
-                        Icon(Icons.star, size: 14, color: Colors.orange),
-                        SizedBox(width: 2),
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.orange),
+                        const SizedBox(width: 2),
                         Text(
-                          '4.9',
-                          style: TextStyle(fontSize: 12, color: Colors.orange),
+                          productData!['average_rating'].toString(),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   const Icon(Icons.favorite_border, size: 22),
                 ],
               ),
-              const SizedBox(height: 4),
 
-              // Vendor
+              const SizedBox(height: 6),
+
+              // Vendor Section
               GestureDetector(
                 onTap: () {
-                  Navigator.pushNamed(context, AppRoutes.consumerstoreview);
+                  Navigator.pushNamed(
+                    context,
+                    AppRoutes.consumerstoreview,
+                    arguments: {'seller_id': productData!['seller_id']},
+                  );
                 },
                 child: Row(
-                  children: const [
+                  children: [
                     Text(
-                      'Talpak Wings PH',
-                      style: TextStyle(
+                      productData!['store_name'] ?? 'View Store',
+                      style: const TextStyle(
                         fontSize: 13,
                         color: Colors.grey,
                         decoration: TextDecoration.underline,
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.open_in_new,
-                      size: 14,
-                      color: Colors.grey,
-                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.open_in_new, size: 14, color: Colors.grey),
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
 
               // Description
-              const Text(
-                'Get ready to dive into a flavorful meal featuring our crispy, golden chicken wings paired with fluffy white rice.',
-                style: TextStyle(fontSize: 14.5, color: Colors.grey),
+              Text(
+                productData!['description'] ?? '',
+                style: const TextStyle(fontSize: 14.5, color: Colors.grey),
               ),
-
               const SizedBox(height: 16),
               const Divider(thickness: 1, color: Colors.grey),
               const SizedBox(height: 20),
 
-              // Add Note
+              // Note Field
               const Text.rich(
                 TextSpan(
                   text: "Add Note ",
@@ -173,60 +227,64 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                 ),
               ),
               const SizedBox(height: 8),
-
-              // Note Input Field
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: Color(0xFF002363)),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.all(12),
                 child: TextField(
                   controller: noteController,
                   maxLines: 3,
                   decoration: const InputDecoration(
-                    hintText: 'eg., less spicy',
                     border: InputBorder.none,
+                    hintText: 'add notes here.',
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
 
-              // Quantity Control
+              // Quantity Controls
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _quantityButton(icon: Icons.remove, onTap: () {
-                    if (quantity > 1) setState(() => quantity--);
-                  }),
+                  _quantityButton(
+                    icon: Icons.remove,
+                    onTap:
+                        () => setState(
+                          () => quantity = (quantity > 1 ? quantity - 1 : 1),
+                        ),
+                  ),
                   const SizedBox(width: 16),
                   Text(
                     '$quantity',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(width: 16),
-                  _quantityButton(icon: Icons.add, onTap: () {
-                    setState(() => quantity++);
-                  }),
+                  _quantityButton(
+                    icon: Icons.add,
+                    onTap: () => setState(() => quantity++),
+                  ),
                 ],
               ),
-
               const SizedBox(height: 32),
 
-              // Buttons
+              // Action Buttons
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
+                      onPressed: () {},
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      onPressed: () {},
                       child: const Text(
                         'Buy Now',
                         style: TextStyle(color: Colors.white),
@@ -236,15 +294,15 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
+                      onPressed: () {},
                       style: OutlinedButton.styleFrom(
                         foregroundColor: primaryColor,
                         side: BorderSide(color: primaryColor),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      onPressed: () {},
                       child: const Text('Add to cart'),
                     ),
                   ),
@@ -258,7 +316,10 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     );
   }
 
-  Widget _quantityButton({required IconData icon, required VoidCallback onTap}) {
+  Widget _quantityButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.blue.shade100),
@@ -273,14 +334,14 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
 
   Widget _buildReportDialog(BuildContext context) {
     final TextEditingController _reportController = TextEditingController();
-    final Color primaryColor = const Color(0xFF001F5B); // Navy blue
-
     bool _isReporting = false;
 
     return StatefulBuilder(
       builder: (context, setState) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           insetPadding: const EdgeInsets.all(20),
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -319,33 +380,38 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  child: _isReporting
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF002363),
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : ElevatedButton(
-                          onPressed: () {
-                            setState(() => _isReporting = true);
-                            Future.delayed(const Duration(seconds: 2), () {
-                              Navigator.pop(context); // close dialog
-                              Navigator.pushReplacementNamed(context, AppRoutes.consumerreportsub);
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                  child:
+                      _isReporting
+                          ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF002363),
+                              strokeWidth: 3,
+                            ),
+                          )
+                          : ElevatedButton(
+                            onPressed: () {
+                              setState(() => _isReporting = true);
+                              Future.delayed(const Duration(seconds: 2), () {
+                                Navigator.pop(context);
+                                Navigator.pushReplacementNamed(
+                                  context,
+                                  AppRoutes.consumerreportsub,
+                                  arguments: {'id': productId},
+                                );
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF001F5B),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Submit report',
+                              style: TextStyle(color: Colors.white),
                             ),
                           ),
-                          child: const Text(
-                            'Submit report',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
                 ),
               ],
             ),
