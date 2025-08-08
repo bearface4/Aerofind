@@ -16,8 +16,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   RangeValues _currentRange = const RangeValues(0, 5000);
   bool _isLoading = true;
   List<Map<String, dynamic>> products = [];
-
-  String? _token; // store bearer token
+  String? _token;
+  final TextEditingController _searchController = TextEditingController();
 
   final List<Map<String, String>> categories = const [
     {'title': 'Snacks', 'image': 'assets/snack.png'},
@@ -41,7 +41,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     final storedToken = prefs.getString('access_token');
 
     if (storedToken == null || storedToken.isEmpty) {
-      print("No token found. Redirecting to login.");
       Navigator.pushReplacementNamed(context, AppRoutes.login);
       return;
     }
@@ -50,17 +49,13 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       _token = storedToken;
     });
 
-    print("Loaded token: $_token");
     await fetchProducts();
   }
 
   Future<void> fetchProducts() async {
     const url = 'https://aerofind-api.onrender.com/customer/products';
 
-    if (_token == null) {
-      print('Token is null. Aborting fetch.');
-      return;
-    }
+    if (_token == null) return;
 
     try {
       final response = await http.get(
@@ -73,7 +68,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        print('Fetched ${data.length} products');
 
         final fetchedProducts =
             data.map<Map<String, dynamic>>((item) {
@@ -96,25 +90,86 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           _isLoading = false;
         });
       } else if (response.statusCode == 401) {
-        print("Unauthorized. Redirecting to login.");
         Navigator.pushReplacementNamed(context, AppRoutes.login);
-      } else {
-        print('Failed to load products. Status: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching products: $e');
     }
   }
 
+  Future<void> searchProducts(String query) async {
+    const url = 'https://aerofind-api.onrender.com/search/search';
+
+    if (_token == null || query.trim().isEmpty) {
+      print('[SEARCH] Token missing or query empty.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    print('[SEARCH] Starting search for: "$query"');
+    print(
+      '[SEARCH] Sending POST to $url with body: ${jsonEncode({'query': query.trim(), 'limit': 10})}',
+    );
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: jsonEncode({'query': query.trim(), 'limit': 10}),
+      );
+
+      print('[SEARCH] Status Code: ${response.statusCode}');
+      print('[SEARCH] Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+
+        final List<Map<String, dynamic>> matchedProducts = [];
+
+        for (var item in data) {
+          final int id = item['id'];
+          final match = products.firstWhere(
+            (product) => product['id'] == id,
+            orElse:
+                () => {
+                  'id': item['id'],
+                  'title': item['name'],
+                  'price': item['price'],
+                  'image': '', // fallback
+                  'description': item['description'],
+                  'stocks': null,
+                  'seller_id': item['seller_id'],
+                  'average_rating': null,
+                  'rating_count': null,
+                  'categories': [],
+                },
+          );
+          matchedProducts.add(match);
+        }
+
+        print('[SEARCH] Matched ${matchedProducts.length} products.');
+        setState(() {
+          products = matchedProducts;
+          _isLoading = false;
+        });
+      } else {
+        print('[SEARCH] Failed with status: ${response.statusCode}');
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      print('[SEARCH] Error during search: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> addToCart(int productId, String productName) async {
     if (_token == null) {
-      print('Token is null. Redirecting to login.');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Session expired. Please login again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
       Navigator.pushReplacementNamed(context, AppRoutes.login);
       return;
     }
@@ -125,31 +180,18 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
           'Authorization': 'Bearer $_token',
         },
-        body: json.encode({"product_id": productId, "quantity": 1}),
+        body: jsonEncode({"product_id": productId, "quantity": 1}),
       );
 
-      print('Add to cart response: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("$productName added to cart."),
             backgroundColor: Colors.green,
           ),
         );
-      } else if (response.statusCode == 401) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Session expired. Please login again."),
-            backgroundColor: Colors.red,
-          ),
-        );
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -161,7 +203,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         );
       }
     } catch (e) {
-      print('Error adding to cart: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('An error occurred while adding item to cart'),
@@ -228,9 +269,20 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         children: [
           Expanded(
             child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                if (value.trim().isEmpty) {
+                  setState(() => _isLoading = true);
+                  fetchProducts(); // reload default product list
+                }
+              },
+              onSubmitted: (value) => searchProducts(value),
               decoration: InputDecoration(
                 hintText: 'Search',
-                suffixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () => searchProducts(_searchController.text),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
@@ -334,15 +386,24 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          product['image'],
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder:
-                              (context, error, stackTrace) =>
-                                  const Icon(Icons.broken_image),
-                        ),
+                        child:
+                            product['image'] != null &&
+                                    product['image'].toString().isNotEmpty
+                                ? Image.network(
+                                  product['image'],
+                                  height: 180,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (context, error, stackTrace) =>
+                                          const Icon(Icons.broken_image),
+                                )
+                                : Container(
+                                  height: 180,
+                                  width: double.infinity,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.image_not_supported),
+                                ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -459,6 +520,11 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   }
 
   void _showFilterModal() {
+    // Track availability buttons and selected category inside modal
+    bool orderNowSelected = false;
+    bool preOrderSelected = false;
+    String? selectedCategory; // only one category allowed now
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -501,19 +567,100 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       runSpacing: 10,
                       children:
                           categories.map((category) {
-                            final isSelected =
-                                category['title'] == 'School Supplies';
+                            final title = category['title']!;
+                            final isSelected = selectedCategory == title;
                             return ChoiceChip(
-                              label: Text(category['title']!),
+                              label: Text(title),
                               selected: isSelected,
                               showCheckmark: false,
-                              onSelected: (_) {},
+                              onSelected: (selected) {
+                                setModalState(() {
+                                  if (selected) {
+                                    selectedCategory = title;
+                                  } else {
+                                    selectedCategory = null;
+                                  }
+                                });
+                              },
                               selectedColor: const Color(0xFF002363),
+                              backgroundColor: Colors.grey[300],
                               labelStyle: TextStyle(
                                 color: isSelected ? Colors.white : Colors.black,
                               ),
                             );
                           }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Availability',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setModalState(() {
+                                orderNowSelected = !orderNowSelected;
+                                if (orderNowSelected) preOrderSelected = false;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  orderNowSelected
+                                      ? const Color(0xFF002363)
+                                      : Colors.grey[300],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              'Order Now',
+                              style: TextStyle(
+                                color:
+                                    orderNowSelected
+                                        ? Colors.white
+                                        : Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setModalState(() {
+                                preOrderSelected = !preOrderSelected;
+                                if (preOrderSelected) orderNowSelected = false;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  preOrderSelected
+                                      ? const Color(0xFF002363)
+                                      : Colors.grey[300],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              'Pre-Order',
+                              style: TextStyle(
+                                color:
+                                    preOrderSelected
+                                        ? Colors.white
+                                        : Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     const Align(
@@ -532,8 +679,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                           child: Slider(
                             value: _currentRange.end,
                             min: 0,
-                            max: 10000,
-                            divisions: 100,
+                            max: 60000,
+                            divisions: 600,
                             label: '₱${_currentRange.end.toInt()}',
                             activeColor: const Color(0xFF002363),
                             inactiveColor: Colors.grey[300],
@@ -548,62 +695,17 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        const Text("₱10,000", style: TextStyle(fontSize: 14)),
-                      ],
-                    ),
-                    Text(
-                      '₱${_currentRange.end.toInt()}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 20),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Availability',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF002363),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              "Order now",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {},
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.black),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              "Pre-order",
-                              style: TextStyle(color: Colors.black),
-                            ),
-                          ),
-                        ),
+                        const Text("₱60,000", style: TextStyle(fontSize: 14)),
                       ],
                     ),
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          // TODO: Apply filters using selectedCategory, orderNowSelected, preOrderSelected, _currentRange
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF002363),
                           shape: RoundedRectangleBorder(
