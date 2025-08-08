@@ -10,6 +10,9 @@ class ConsumerTrackViewPage extends StatefulWidget {
 class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
   bool showTimeline = false;
 
+  final GlobalKey _bottomKey = GlobalKey();
+  double _bottomHeight = 0.0;
+
   final orders = [
     {
       'image': 'assets/burgersteak.jpg',
@@ -45,18 +48,29 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final renderBox =
+          _bottomKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        setState(() {
+          _bottomHeight = renderBox.size.height;
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
     final appBarHeight = 100.0;
-    final bottomSectionHeight = 180.0;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Stack(
           children: [
-            // ── Main Content ──
             Column(
               children: [
                 // AppBar
@@ -66,8 +80,10 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: const Icon(Icons.arrow_back_ios_new_rounded,
-                            color: Colors.black),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: Colors.black,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       const Text.rich(
@@ -113,8 +129,10 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
                                 borderRadius: BorderRadius.circular(12),
                                 child: Image.asset(
                                   item['image']!,
-                                  width: screenWidth * 0.4,
-                                  height: screenWidth * 0.4,
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.4,
+                                  height:
+                                      MediaQuery.of(context).size.width * 0.4,
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -157,115 +175,132 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
                   ),
                 ),
 
-                // Bottom Info Section
-                Column(
-                  children: [
-                    // Track Order Button
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => showTimeline = !showTimeline);
-                      },
-                      child: Container(
+                // Bottom Section
+                Container(
+                  key: _bottomKey,
+                  child: Column(
+                    children: [
+                      // Track Order Button (reused to hide timeline too)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => showTimeline = !showTimeline);
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE0EBFF),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(36),
+                            ),
+                          ),
+                          child: const Text(
+                            'Track Order',
+                            style: TextStyle(
+                              color: Color(0xFF002F6C),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Subtotal & Delivery Fee
+                      Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 16),
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
                         decoration: const BoxDecoration(
-                          color: Color(0xFFE0EBFF),
+                          color: Color(0xFFF0F6FF),
                           borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(36),
                           ),
                         ),
-                        child: const Text(
-                          'Track Order',
-                          style: TextStyle(
-                            color: Color(0xFF002F6C),
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Subtotal & Delivery Fee
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 16),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF0F6FF),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(36),
-                        ),
-                      ),
-                      child: Column(
-                        children: const [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Sub Total',
-                                  style: TextStyle(color: Colors.black54)),
-                              Text('₱ 293',
-                                  style: TextStyle(color: Colors.black54)),
-                            ],
-                          ),
-                          SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Delivery Fee',
-                                  style: TextStyle(color: Colors.black54)),
-                              Text('₱ 50',
-                                  style: TextStyle(color: Colors.black54)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Total
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 24),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(36),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                        child: const Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Sub Total',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                                Text(
+                                  '₱ 293',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '₱ 343',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                            SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Delivery Fee',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                                Text(
+                                  '₱ 50',
+                                  style: TextStyle(color: Colors.black54),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+
+                      // Total
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 24,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(36),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '₱ 343',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
 
-            // ── Timeline Slide ──
+            // Timeline Panel
             AnimatedPositioned(
               duration: const Duration(milliseconds: 400),
               curve: Curves.easeInOut,
               top: showTimeline ? appBarHeight : screenHeight,
               left: 0,
               right: 0,
-              height: screenHeight - appBarHeight - bottomSectionHeight,
+              height: screenHeight - appBarHeight - _bottomHeight,
               child: GestureDetector(
                 onVerticalDragUpdate: (details) {
                   if (details.delta.dy > 10) {
@@ -298,7 +333,9 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
                                   color: const Color(0xFF002F6C),
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                      color: Colors.white, width: 4),
+                                    color: Colors.white,
+                                    width: 4,
+                                  ),
                                 ),
                               ),
                               if (!isLast)
@@ -321,16 +358,18 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: isLast
-                                          ? const Color(0xFF002F6C)
-                                          : Colors.black54,
+                                      color:
+                                          isLast
+                                              ? const Color(0xFF002F6C)
+                                              : Colors.black54,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     step['time']!,
-                                    style:
-                                        const TextStyle(color: Colors.black45),
+                                    style: const TextStyle(
+                                      color: Colors.black45,
+                                    ),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
