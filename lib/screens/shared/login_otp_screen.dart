@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:aerofind/routes/app_routes.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // <-- added
 
 class LoginOtpScreen extends StatefulWidget {
   const LoginOtpScreen({super.key});
@@ -112,6 +113,16 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
       print('📦 Body: ${response.body}');
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['access_token']; //  key
+
+        if (token != null) {
+          // ✅ Save the token
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('access_token', token);
+          print('🔐 Saved token: $token');
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Login successful!'),
@@ -170,8 +181,6 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                     style: TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                   const SizedBox(height: 40),
-
-                  // ──────── OTP Boxes ────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: List.generate(6, (index) {
@@ -203,10 +212,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                       );
                     }),
                   ),
-
                   const SizedBox(height: 30),
-
-                  // ──────── Login Button ────────
                   SizedBox(
                     width: double.infinity,
                     height: 50,

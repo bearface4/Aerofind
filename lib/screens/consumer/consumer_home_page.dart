@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:aerofind/routes/app_routes.dart';
 
@@ -16,6 +17,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> products = [];
 
+  String? _token; // store bearer token
+
   final List<Map<String, String>> categories = const [
     {'title': 'Snacks', 'image': 'assets/snack.png'},
     {'title': 'Beverages', 'image': 'assets/bev.png'},
@@ -30,20 +33,50 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   @override
   void initState() {
     super.initState();
-    fetchProducts();
+    _loadTokenAndFetch();
+  }
+
+  Future<void> _loadTokenAndFetch() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final storedToken = prefs.getString('access_token');
+
+    if (storedToken == null || storedToken.isEmpty) {
+      print("No token found. Redirecting to login.");
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
+      return;
+    }
+
+    setState(() {
+      _token = storedToken;
+    });
+
+    print("Loaded token: $_token");
+    await fetchProducts();
   }
 
   Future<void> fetchProducts() async {
     const url = 'https://aerofind-api.onrender.com/customer/products';
+
+    if (_token == null) {
+      print('Token is null. Aborting fetch.');
+      return;
+    }
+
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      );
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         print('Fetched ${data.length} products');
 
         final fetchedProducts =
             data.map<Map<String, dynamic>>((item) {
-              print('Product: ${item['name']} | Price: ${item['price']}');
               return {
                 'id': item['id'],
                 'title': item['name'],
@@ -62,11 +95,79 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           products = fetchedProducts;
           _isLoading = false;
         });
+      } else if (response.statusCode == 401) {
+        print("Unauthorized. Redirecting to login.");
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
       } else {
         print('Failed to load products. Status: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching products: $e');
+    }
+  }
+
+  Future<void> addToCart(int productId, String productName) async {
+    if (_token == null) {
+      print('Token is null. Redirecting to login.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Session expired. Please login again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
+      return;
+    }
+
+    const url = 'https://aerofind-api.onrender.com/customer/cart/items';
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: json.encode({"product_id": productId, "quantity": 1}),
+      );
+
+      print('Add to cart response: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("$productName added to cart."),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Session expired. Please login again."),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to add item to cart (${response.statusCode})',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error adding to cart: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('An error occurred while adding item to cart'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -228,7 +329,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         Navigator.pushNamed(
                           context,
                           AppRoutes.consumeritem,
-                          arguments: {'id': product['id']}, // ✅ Pass product ID
+                          arguments: {'id': product['id']},
                         );
                       },
                       child: ClipRRect(
@@ -294,7 +395,9 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                               size: 16,
                               color: Color(0xFF002363),
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              addToCart(product['id'], product['title']);
+                            },
                             padding: EdgeInsets.zero,
                           ),
                         ),
@@ -344,7 +447,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 radius: 8,
                 backgroundColor: Colors.red,
                 child: Text(
-                  '2',
+                  '0',
                   style: TextStyle(fontSize: 10, color: Colors.white),
                 ),
               ),
@@ -522,6 +625,3 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     );
   }
 }
-
-
-//working homepage 

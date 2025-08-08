@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerItemDetails extends StatefulWidget {
@@ -17,6 +18,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
   Map<String, dynamic>? productData;
   bool isLoading = true;
   int? productId;
+  String? _token;
 
   @override
   void didChangeDependencies() {
@@ -24,7 +26,15 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     final args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     productId = args['id'];
-    fetchProductDetails(productId!);
+    _loadTokenAndFetchProduct(productId!);
+  }
+
+  Future<void> _loadTokenAndFetchProduct(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _token = prefs.getString('access_token');
+    });
+    await fetchProductDetails(id);
   }
 
   Future<void> fetchProductDetails(int id) async {
@@ -40,6 +50,46 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
       });
     } else {
       setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> addToCart() async {
+    if (_token == null || productData == null) return;
+
+    final url = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/cart/items',
+    );
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_token',
+      },
+      body: json.encode({
+        'product_id': productId,
+        'quantity': quantity,
+        'note': noteController.text,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final itemName = productData!['name'] ?? 'Item';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$itemName added to cart'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (response.statusCode == 401) {
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to add to cart'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -175,7 +225,6 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                   const Icon(Icons.favorite_border, size: 22),
                 ],
               ),
-
               const SizedBox(height: 6),
 
               // Vendor Section
@@ -294,7 +343,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: addToCart,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: primaryColor,
                         side: BorderSide(color: primaryColor),

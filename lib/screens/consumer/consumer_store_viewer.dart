@@ -1,7 +1,10 @@
+// Updated ConsumerStoreViewer with Add to Cart functionality and access_token
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ConsumerStoreViewer extends StatefulWidget {
   @override
@@ -11,16 +14,17 @@ class ConsumerStoreViewer extends StatefulWidget {
 class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
   List<dynamic> products = [];
   bool isLoading = true;
+  int? sellerId;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final sellerId = args?['seller_id'];
+    sellerId = args?['seller_id'];
 
     if (sellerId != null) {
-      fetchProducts(sellerId);
+      fetchProducts(sellerId!);
     }
   }
 
@@ -45,6 +49,36 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
         isLoading = false;
       });
       print('Failed to load products');
+    }
+  }
+
+  Future<void> addToCart(int productId, String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+
+    final response = await http.post(
+      Uri.parse('https://aerofind-api.onrender.com/customer/cart/items'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'product_id': productId}),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("$name added to cart"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to add item to cart"),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -111,6 +145,8 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
                               name: item['name'] ?? 'Unknown',
                               price: '₱${item['price'] ?? '0'}',
                               rating: (item['rating']?.toString() ?? '4.0'),
+                              onAddToCart:
+                                  () => addToCart(item['id'], item['name']),
                             );
                           },
                         ),
@@ -192,12 +228,14 @@ class MenuCard extends StatelessWidget {
   final String name;
   final String price;
   final String rating;
+  final VoidCallback onAddToCart;
 
   const MenuCard({
     required this.imageUrl,
     required this.name,
     required this.price,
     required this.rating,
+    required this.onAddToCart,
   });
 
   @override
@@ -296,22 +334,25 @@ class MenuCard extends StatelessWidget {
               ),
             ),
             SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(
-                color: Color(0xFF002363),
-                shape: BoxShape.circle,
-              ),
+            GestureDetector(
+              onTap: onAddToCart,
               child: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(2),
                 decoration: const BoxDecoration(
-                  color: Colors.white,
+                  color: Color(0xFF002363),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.shopping_cart_outlined,
-                  size: 16,
-                  color: Color(0xFF002363),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 16,
+                    color: Color(0xFF002363),
+                  ),
                 ),
               ),
             ),
