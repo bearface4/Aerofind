@@ -26,13 +26,8 @@ class _ConsumerReportPageState extends State<ConsumerReportPage> {
       }
 
       if (itemId != null) {
-        Future.delayed(const Duration(seconds: 4), () {
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            AppRoutes.consumeritem,
-            arguments: {'id': itemId},
-            (route) => false,
-          );
+        Future.delayed(const Duration(seconds: 5), () {
+          Navigator.pop(context);
         });
       }
     }
