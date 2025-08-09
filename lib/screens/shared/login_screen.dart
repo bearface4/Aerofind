@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:aerofind/routes/app_routes.dart';
 
@@ -48,10 +47,10 @@ class _LoginScreenState extends State<LoginScreen>
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
     if (email.isEmpty) return 'Email address is required';
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    return emailRegex.hasMatch(email) ? null : 'Enter a valid email address';
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+    return emailRegex.hasMatch(email)
+        ? null
+        : 'Email must be a valid address ending with @gmail.com';
   }
 
   Future<void> _submit() async {
@@ -72,19 +71,17 @@ class _LoginScreenState extends State<LoginScreen>
         print('📥 Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final otp = data['otp'];
-          print('✅ OTP received: $otp');
-
-          if (otp != null && otp.length == 6) {
-            await Clipboard.setData(ClipboardData(text: otp));
-            print('📋 OTP copied to clipboard.');
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('OTP has been sent to your email.'),
+              backgroundColor: Colors.green,
+            ),
+          );
 
           Navigator.pushNamed(
             context,
             AppRoutes.loginotp,
-            arguments: {'email': email, 'otp': otp},
+            arguments: {'email': email}, // only pass email now
           );
         } else {
           final msg =

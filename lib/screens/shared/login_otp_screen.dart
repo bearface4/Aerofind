@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:aerofind/routes/app_routes.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <-- added
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginOtpScreen extends StatefulWidget {
   const LoginOtpScreen({super.key});
@@ -35,12 +35,6 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
       userEmail = args['email'];
       print('📧 Received email: $userEmail');
     }
-
-    Future.delayed(const Duration(milliseconds: 300), () async {
-      final clipboardData = await Clipboard.getData('text/plain');
-      final clipboardText = clipboardData?.text?.trim() ?? '';
-      print('📋 OTP in clipboard: $clipboardText');
-    });
   }
 
   @override
@@ -56,15 +50,14 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
   }
 
   void _onOtpChanged(String value, int index) {
+    // Move to next field when a character is entered
     if (value.length == 1 && index < 5) {
       FocusScope.of(context).requestFocus(focusNodes[index + 1]);
     }
 
-    if (value.length == 6) {
-      for (int i = 0; i < 6; i++) {
-        otpControllers[i].text = value[i];
-      }
-      FocusScope.of(context).unfocus();
+    // Move to previous field if deleted
+    if (value.isEmpty && index > 0) {
+      FocusScope.of(context).requestFocus(focusNodes[index - 1]);
     }
   }
 
@@ -114,10 +107,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final token = data['access_token']; //  key
+        final token = data['access_token'];
 
         if (token != null) {
-          // ✅ Save the token
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('access_token', token);
           print('🔐 Saved token: $token');
@@ -175,11 +167,14 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Enter the OTP code we’ve sent to your inbox.',
+                  Text(
+                    userEmail != null
+                        ? 'Enter the OTP code we’ve sent to $userEmail'
+                        : 'Enter the OTP code we’ve sent to your inbox.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
+
                   const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -191,13 +186,19 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                           controller: otpControllers[index],
                           focusNode: focusNodes[index],
                           textAlign: TextAlign.center,
-                          keyboardType: TextInputType.text,
+                          keyboardType:
+                              TextInputType.text, // allow letters & numbers
                           textCapitalization: TextCapitalization.characters,
-                          maxLength: 6,
+                          maxLength: 1, // only 1 char per box
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[A-Za-z0-9]'),
+                            ),
+                          ],
                           onChanged: (value) => _onOtpChanged(value, index),
                           decoration: InputDecoration(
                             counterText: '',

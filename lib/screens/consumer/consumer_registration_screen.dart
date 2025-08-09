@@ -95,14 +95,11 @@ class _ConsumerRegistrationScreenState
       print('📩 Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        final otp = responseData['otp'];
-
-        await Clipboard.setData(ClipboardData(text: otp));
+        // OTP will be sent to the user's email by backend
         Navigator.pushReplacementNamed(
           context,
           AppRoutes.emailverification,
-          arguments: {'otp': otp, 'email': _emailCtrl.text.trim()},
+          arguments: {'email': _emailCtrl.text.trim()},
         );
       } else {
         throw Exception('Registration failed: ${response.body}');
@@ -133,10 +130,18 @@ class _ConsumerRegistrationScreenState
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
     if (email.isEmpty) return 'Email address is required';
+
+    // Allow uppercase in username, but enforce exact lowercase @gmail.com domain
     final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+      r'^[a-zA-Z0-9._%+-]+@gmail\.com$',
+      caseSensitive: true, // domain must be exactly lowercase
     );
-    return emailRegex.hasMatch(email) ? null : 'Enter a valid email address';
+
+    if (!emailRegex.hasMatch(email)) {
+      return 'Email must be a valid address ending with @gmail.com';
+    }
+
+    return null;
   }
 
   String? _validatePhone(String? value) {

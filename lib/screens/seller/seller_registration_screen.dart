@@ -64,22 +64,23 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
     );
   }
 
-  String? _validateRequired(String? value, String fieldName) {
-    if (value == null || value.trim().isEmpty) {
-      return '$fieldName is required';
-    }
-    return null;
-  }
+  String? _validateRequired(String? value, String fieldName) =>
+      (value == null || value.trim().isEmpty) ? '$fieldName is required' : null;
 
   String? _validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Email address is required';
-    }
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return 'Email address is required';
+
+    // Allow uppercase in username, but enforce exact lowercase @gmail.com domain
     final emailRegex = RegExp(
-        r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(value.trim())) {
-      return 'Enter a valid email address';
+      r'^[a-zA-Z0-9._%+-]+@gmail\.com$',
+      caseSensitive: true, // domain must be exactly lowercase
+    );
+
+    if (!emailRegex.hasMatch(email)) {
+      return 'Email must be a valid address ending with @gmail.com';
     }
+
     return null;
   }
 
@@ -91,7 +92,9 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
   }
 
   Future<void> _registerSeller() async {
-    final url = Uri.parse('https://aerofind-api.onrender.com/seller/register');// deployed api
+    final url = Uri.parse(
+      'https://aerofind-api.onrender.com/seller/register',
+    ); // deployed api
 
     try {
       final response = await http.post(
@@ -111,16 +114,19 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
       debugPrint("📨 Status Code: ${response.statusCode}");
       debugPrint("📨 Response Body: ${response.body}");
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      Navigator.pushReplacementNamed(context, AppRoutes.sellerregistrationpending);
-    } else {
-      try {
-        final Map<String, dynamic> json = jsonDecode(response.body);
-        _showErrorDialog(json['detail'] ?? 'Registration failed');
-      } catch (_) {
-        _showErrorDialog('Unexpected response from server');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.sellerregistrationpending,
+        );
+      } else {
+        try {
+          final Map<String, dynamic> json = jsonDecode(response.body);
+          _showErrorDialog(json['detail'] ?? 'Registration failed');
+        } catch (_) {
+          _showErrorDialog('Unexpected response from server');
+        }
       }
-    }
     } catch (e) {
       debugPrint("❌ Exception: $e");
       _showErrorDialog('Something went wrong. Please try again.');
@@ -132,16 +138,17 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Registration Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Registration Error'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -180,8 +187,9 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                           TextFormField(
                             controller: _storeNameCtrl,
                             decoration: _fieldDecoration('Input store name'),
-                            validator: (value) =>
-                                _validateRequired(value, 'Store name'),
+                            validator:
+                                (value) =>
+                                    _validateRequired(value, 'Store name'),
                           ),
                           const SizedBox(height: 24),
 
@@ -215,8 +223,9 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                                 child: Text('Printing'),
                               ),
                             ],
-                            onChanged: (val) =>
-                                setState(() => _selectedStoreType = val),
+                            onChanged:
+                                (val) =>
+                                    setState(() => _selectedStoreType = val),
                             validator: _validateDropdown,
                           ),
                           const SizedBox(height: 24),
@@ -227,8 +236,8 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                           TextFormField(
                             controller: _addressCtrl,
                             decoration: _fieldDecoration('Input store address'),
-                            validator: (value) =>
-                                _validateRequired(value, 'Address'),
+                            validator:
+                                (value) => _validateRequired(value, 'Address'),
                           ),
                           const SizedBox(height: 24),
 
@@ -247,36 +256,42 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                           SizedBox(
                             width: double.infinity,
                             height: 56,
-                            child: _isLoading
-                                ? const Center(
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Color(0xFF002F6C)),
-                                    ),
-                                  )
-                                : ElevatedButton(
-                                    onPressed: () {
-                                      if (_formKey.currentState?.validate() ??
-                                          false) {
-                                        setState(() => _isLoading = true);
-                                        _registerSeller();
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF002F6C),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(18),
+                            child:
+                                _isLoading
+                                    ? const Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Color(0xFF002F6C),
+                                            ),
+                                      ),
+                                    )
+                                    : ElevatedButton(
+                                      onPressed: () {
+                                        if (_formKey.currentState?.validate() ??
+                                            false) {
+                                          setState(() => _isLoading = true);
+                                          _registerSeller();
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF002F6C,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            18,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Register',
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
-                                    child: const Text(
-                                      'Register',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
                           ),
                         ],
                       ),

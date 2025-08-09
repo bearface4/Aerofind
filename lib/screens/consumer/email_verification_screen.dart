@@ -19,7 +19,6 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   );
   final List<FocusNode> focusNodes = List.generate(6, (_) => FocusNode());
 
-  String? clipboardOtp;
   String? userEmail;
   bool _isVerifying = false;
 
@@ -32,26 +31,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args != null && args is Map) {
       userEmail = args['email'];
-      final otp = args['otp'];
-      if (otp != null && otp.length == 6) {
-        Clipboard.setData(ClipboardData(text: otp));
-      }
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      FocusScope.of(context).requestFocus(focusNodes[0]);
-
-      final clipboardData = await Clipboard.getData('text/plain');
-      if (clipboardData?.text != null && clipboardData!.text!.length == 6) {
-        clipboardOtp = clipboardData.text;
-        // SnackBar removed
-      }
-    });
   }
 
   @override
@@ -75,22 +55,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     }
   }
 
-  void _handlePaste(String value) {
-    if (value.length == 6) {
-      for (int i = 0; i < 6; i++) {
-        otpControllers[i].text = value[i];
-      }
-      FocusScope.of(context).unfocus();
-    }
-  }
-
   Future<void> _verifyOtp() async {
     final otp = otpControllers.map((e) => e.text).join();
 
     if (otp.length != 6 || userEmail == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Enter full OTP and ensure email is set.'),
+          content: Text('Enter full OTP.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -180,12 +151,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                           controller: otpControllers[index],
                           focusNode: focusNodes[index],
                           textAlign: TextAlign.center,
-                          keyboardType: TextInputType.text,
-                          textCapitalization: TextCapitalization.characters,
-                          maxLength: 6,
+                          keyboardType: TextInputType.text, // allow letters
+                          maxLength: 1,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
-                              RegExp(r'[a-zA-Z0-9]'),
+                              RegExp(r'[a-zA-Z0-9]'), // letters & numbers
                             ),
                           ],
                           style: const TextStyle(
@@ -201,9 +171,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                             ),
                           ),
                           onChanged: (value) {
-                            if (value.length == 6) {
-                              _handlePaste(value);
-                            } else if (value.isNotEmpty && index < 5) {
+                            if (value.isNotEmpty && index < 5) {
                               FocusScope.of(
                                 context,
                               ).requestFocus(focusNodes[index + 1]);
