@@ -1,5 +1,3 @@
-// Updated ConsumerStoreViewer with Add to Cart functionality and access_token
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -144,7 +142,8 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
                               imageUrl: imageUrl,
                               name: item['name'] ?? 'Unknown',
                               price: '₱${item['price'] ?? '0'}',
-                              rating: (item['rating']?.toString() ?? '4.0'),
+                              rating:
+                                  (item['average_rating']?.toString() ?? '4.0'),
                               onAddToCart:
                                   () => addToCart(item['id'], item['name']),
                             );

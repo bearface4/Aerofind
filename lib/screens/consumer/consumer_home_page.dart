@@ -15,6 +15,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   RangeValues _currentRange = const RangeValues(0, 5000);
   bool _isLoading = true;
   List<Map<String, dynamic>> products = [];
+  List<Map<String, dynamic>> allProducts = []; // store all fetched products
   String? _token;
   final TextEditingController _searchController = TextEditingController();
 
@@ -27,6 +28,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     {'title': 'Beauty', 'image': 'assets/beauty.png'},
     {'title': 'School Supplies', 'image': 'assets/school.png'},
     {'title': 'General', 'image': 'assets/general.png'},
+    {'title': 'Aviation/Aeronautics', 'image': 'assets/avia.png'},
   ];
 
   @override
@@ -85,7 +87,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             }).toList();
 
         setState(() {
-          products = fetchedProducts;
+          allProducts = List.from(fetchedProducts);
+          products = List.from(fetchedProducts);
           _isLoading = false;
         });
       } else if (response.statusCode == 401) {
@@ -217,16 +220,22 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       children: [
         _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(),
-                  _buildSearchBar(),
-                  _buildCategories(context),
-                  _buildProductGrid(context),
-                ],
+            : RefreshIndicator(
+              onRefresh: () async {
+                await fetchProducts();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    _buildSearchBar(),
+                    _buildCategories(context),
+                    _buildProductGrid(context),
+                  ],
+                ),
               ),
             ),
         _buildFloatingCartButton(),
@@ -272,7 +281,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
               onChanged: (value) {
                 if (value.trim().isEmpty) {
                   setState(() => _isLoading = true);
-                  fetchProducts(); // reload default product list
+                  fetchProducts();
                 }
               },
               onSubmitted: (value) => searchProducts(value),
@@ -523,6 +532,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     bool orderNowSelected = false;
     bool preOrderSelected = false;
     String? selectedCategory; // only one category allowed now
+    double currentMaxPrice = _currentRange.end;
 
     showModalBottomSheet(
       context: context,
@@ -574,11 +584,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                               showCheckmark: false,
                               onSelected: (selected) {
                                 setModalState(() {
-                                  if (selected) {
-                                    selectedCategory = title;
-                                  } else {
-                                    selectedCategory = null;
-                                  }
+                                  selectedCategory = selected ? title : null;
                                 });
                               },
                               selectedColor: const Color(0xFF002363),
@@ -676,19 +682,16 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Slider(
-                            value: _currentRange.end,
+                            value: currentMaxPrice,
                             min: 0,
                             max: 60000,
                             divisions: 600,
-                            label: '₱${_currentRange.end.toInt()}',
+                            label: '₱${currentMaxPrice.toInt()}',
                             activeColor: const Color(0xFF002363),
                             inactiveColor: Colors.grey[300],
                             onChanged: (value) {
                               setModalState(() {
-                                _currentRange = RangeValues(0, value);
-                              });
-                              setState(() {
-                                _currentRange = RangeValues(0, value);
+                                currentMaxPrice = value;
                               });
                             },
                           ),
@@ -702,8 +705,28 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
+                          setState(() {
+                            _currentRange = RangeValues(0, currentMaxPrice);
+                            products =
+                                allProducts.where((product) {
+                                  final inCategory =
+                                      selectedCategory == null ||
+                                      (product['categories'] != null &&
+                                          (product['categories'] as List)
+                                              .map(
+                                                (c) =>
+                                                    c.toString().toLowerCase(),
+                                              )
+                                              .contains(
+                                                selectedCategory!.toLowerCase(),
+                                              ));
+                                  final inPrice =
+                                      (product['price'] is num) &&
+                                      product['price'] <= currentMaxPrice;
+                                  return inCategory && inPrice;
+                                }).toList();
+                          });
                           Navigator.pop(context);
-                          // TODO: Apply filters using selectedCategory, orderNowSelected, preOrderSelected, _currentRange
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF002363),

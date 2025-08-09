@@ -222,7 +222,32 @@ class _SellerRegistrationScreenState extends State<SellerRegistrationScreen> {
                                 value: 'Printing',
                                 child: Text('Printing'),
                               ),
+                              DropdownMenuItem(
+                                value: 'Clothing',
+                                child: Text('Clothing'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Health',
+                                child: Text('Health'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Beauty',
+                                child: Text('Beauty'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'School Supplies',
+                                child: Text('School Supplies'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'General',
+                                child: Text('General'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Aviation/Aeronautics',
+                                child: Text('Aviation/Aeronautics'),
+                              ),
                             ],
+
                             onChanged:
                                 (val) =>
                                     setState(() => _selectedStoreType = val),
