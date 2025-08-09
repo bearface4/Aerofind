@@ -55,7 +55,6 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     final token = prefs.getString('access_token') ?? '';
 
     if (newQuantity < 1) {
-      // Quantity is 0 - delete the item
       final deleteResponse = await http.delete(
         Uri.parse(
           'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
@@ -76,7 +75,6 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
       return;
     }
 
-    // Update quantity
     try {
       final response = await http.put(
         Uri.parse(
@@ -167,6 +165,17 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
       body:
           isLoading
               ? const Center(child: CircularProgressIndicator())
+              : cartItems.isEmpty
+              ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Text(
+                    'Your cart is empty.',
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
               : Column(
                 children: [
                   Expanded(

@@ -22,6 +22,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
   final FocusNode keyboardListenerFocusNode = FocusNode();
 
   String? userEmail;
+  bool isSeller = false;
   bool _isVerifying = false;
 
   final baseUrl = 'https://aerofind-api.onrender.com';
@@ -33,7 +34,8 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args != null && args is Map<String, dynamic>) {
       userEmail = args['email'];
-      print('📧 Received email: $userEmail');
+      isSeller = args['isSeller'] ?? false;
+      print('📧 Received email: $userEmail, isSeller: $isSeller');
     }
   }
 
@@ -93,7 +95,9 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
 
     setState(() => _isVerifying = true);
 
-    final url = Uri.parse('$baseUrl/customer/login');
+    final url = Uri.parse(
+      isSeller ? '$baseUrl/seller/login' : '$baseUrl/customer/login',
+    );
 
     try {
       final response = await http.post(
@@ -123,7 +127,11 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
         );
 
         await Future.delayed(const Duration(milliseconds: 800));
-        Navigator.pushReplacementNamed(context, AppRoutes.consumermain);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          isSeller ? AppRoutes.sellermain : AppRoutes.consumermain,
+          (route) => false,
+        );
       } else {
         final msg = jsonDecode(response.body)['message'] ?? 'Login failed.';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -174,7 +182,6 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
-
                   const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,

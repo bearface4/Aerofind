@@ -47,7 +47,10 @@ class _LoginScreenState extends State<LoginScreen>
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
     if (email.isEmpty) return 'Email address is required';
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@gmail\.com$',
+      caseSensitive: false,
+    );
     return emailRegex.hasMatch(email)
         ? null
         : 'Email must be a valid address ending with @gmail.com';
@@ -59,13 +62,21 @@ class _LoginScreenState extends State<LoginScreen>
 
       try {
         final email = _emailController.text.trim();
-        print('🔃 Sending login OTP request for email: $email');
+        print('🔃 Trying login OTP request for email: $email');
 
-        final response = await http.post(
-          Uri.parse(
-            'https://aerofind-api.onrender.com/customer/request-login-otp?email=$email',
-          ),
-        );
+        final customerUrl =
+            'https://aerofind-api.onrender.com/customer/request-login-otp?email=$email';
+        final sellerUrl =
+            'https://aerofind-api.onrender.com/seller/request-login-otp?email=$email';
+
+        http.Response response = await http.post(Uri.parse(customerUrl));
+        bool isSeller = false;
+
+        if (response.statusCode == 404) {
+          print('⚠️ Customer not found, trying seller endpoint...');
+          response = await http.post(Uri.parse(sellerUrl));
+          isSeller = true;
+        }
 
         print('📥 Response Code: ${response.statusCode}');
         print('📥 Response Body: ${response.body}');
@@ -81,12 +92,11 @@ class _LoginScreenState extends State<LoginScreen>
           Navigator.pushNamed(
             context,
             AppRoutes.loginotp,
-            arguments: {'email': email}, // only pass email now
+            arguments: {'email': email, 'isSeller': isSeller},
           );
         } else {
           final msg =
               jsonDecode(response.body)['message'] ?? 'Something went wrong.';
-          print('❌ Login failed: $msg');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(msg), backgroundColor: Colors.red),
           );

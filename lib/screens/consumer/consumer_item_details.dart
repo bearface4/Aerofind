@@ -75,11 +75,13 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final itemName = productData!['name'] ?? 'Item';
+      final message =
+          quantity > 1
+              ? '$quantity $itemName added to cart'
+              : '$itemName added to cart';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$itemName added to cart'),
-          backgroundColor: Colors.green,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
       );
     } else if (response.statusCode == 401) {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
@@ -293,16 +295,17 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               ),
               const SizedBox(height: 24),
 
-              // Quantity Controls
+              // Quantity Controls (just local update)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _quantityButton(
                     icon: Icons.remove,
-                    onTap:
-                        () => setState(
-                          () => quantity = (quantity > 1 ? quantity - 1 : 1),
-                        ),
+                    onTap: () {
+                      setState(() {
+                        quantity = quantity > 1 ? quantity - 1 : 1;
+                      });
+                    },
                   ),
                   const SizedBox(width: 16),
                   Text(
@@ -315,7 +318,11 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                   const SizedBox(width: 16),
                   _quantityButton(
                     icon: Icons.add,
-                    onTap: () => setState(() => quantity++),
+                    onTap: () {
+                      setState(() {
+                        quantity++;
+                      });
+                    },
                   ),
                 ],
               ),
