@@ -29,10 +29,7 @@ class RoleSelectionScreen extends StatelessWidget {
               description:
                   'Post your products to connect with buyers and track your performance in real-time.',
               onTap: () {
-                Navigator.pushReplacementNamed(
-                  context,
-                  AppRoutes.sellerregistration,
-                );
+                Navigator.pushNamed(context, AppRoutes.sellerregistration);
               },
             ),
 
@@ -44,10 +41,7 @@ class RoleSelectionScreen extends StatelessWidget {
               description:
                   'Buy products from trusted sellers. Seamless browsing and simple checkout.',
               onTap: () {
-                Navigator.pushReplacementNamed(
-                  context,
-                  AppRoutes.consumerregistration,
-                );
+                Navigator.pushNamed(context, AppRoutes.consumerregistration);
               },
             ),
           ],

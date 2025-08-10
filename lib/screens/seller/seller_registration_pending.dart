@@ -14,7 +14,11 @@ class _SellerPendingScreenState extends State<SellerPendingScreen> {
   void initState() {
     super.initState();
     Future.delayed(const Duration(seconds: 5), () {
-      Navigator.pushReplacementNamed(context, AppRoutes.login);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login, // Your login route name
+        (route) => false, // This clears all previous routes
+      );
     });
   }
 
