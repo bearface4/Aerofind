@@ -89,7 +89,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         );
 
         await Future.delayed(const Duration(seconds: 1));
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.login,
+          (route) => false, // removes all previous routes
+        );
       } else {
         final msg =
             jsonDecode(response.body)['message'] ?? 'Verification failed.';
