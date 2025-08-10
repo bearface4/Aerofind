@@ -61,35 +61,6 @@ class _SellerPendingScreenState extends State<SellerPendingScreen> {
                 ),
               ),
             ),
-
-            // ────────── Bottom Button ──────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(
-                        context, AppRoutes.sellermain);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Go to Dashboard',
-                    style: TextStyle(
-                      color: Color(0xFF002F6C),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
