@@ -82,6 +82,9 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset =
+        MediaQuery.of(context).padding.bottom + 20; // responsive bottom space
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -126,7 +129,7 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
                     isLoading
                         ? Center(child: CircularProgressIndicator())
                         : GridView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: 20),
+                          padding: EdgeInsets.fromLTRB(20, 0, 20, bottomInset),
                           itemCount: products.length,
                           gridDelegate:
                               SliverGridDelegateWithFixedCrossAxisCount(
