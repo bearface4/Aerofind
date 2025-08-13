@@ -111,136 +111,168 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                 child:
                     isLoading
                         ? const Center(child: CircularProgressIndicator())
-                        : orders.isEmpty
-                        ? const Center(child: Text("No orders found"))
                         : RefreshIndicator(
                           onRefresh: _fetchOrders,
-                          child: ListView.separated(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: orders.length,
-                            separatorBuilder:
-                                (context, index) => const Divider(
-                                  color: Colors.black12,
-                                  thickness: 1,
-                                  height: 32,
-                                ),
-                            itemBuilder: (context, index) {
-                              final item = orders[index];
-                              final bool isOngoing =
-                                  item['status'] == 'Ongoing';
+                          child:
+                              orders.isEmpty
+                                  ? SingleChildScrollView(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    child: SizedBox(
+                                      height:
+                                          MediaQuery.of(context).size.height *
+                                          0.6,
+                                      child: const Center(
+                                        child: Text("No orders found"),
+                                      ),
+                                    ),
+                                  )
+                                  : ListView.separated(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    itemCount: orders.length,
+                                    separatorBuilder:
+                                        (context, index) => const Divider(
+                                          color: Colors.black12,
+                                          thickness: 1,
+                                          height: 32,
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final item = orders[index];
+                                      final bool isOngoing =
+                                          item['status'] == 'Ongoing';
 
-                              final rowContent = Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child:
-                                        item['image'].startsWith("http")
-                                            ? Image.network(
-                                              item['image'],
-                                              width: 100,
-                                              height: 100,
-                                              fit: BoxFit.cover,
-                                            )
-                                            : Image.asset(
-                                              'assets/placeholder.jpg',
-                                              width: 100,
-                                              height: 100,
-                                              fit: BoxFit.cover,
+                                      final rowContent = Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 4,
-                                            ),
-                                            child: Column(
+                                            child:
+                                                item['image'].startsWith("http")
+                                                    ? Image.network(
+                                                      item['image'],
+                                                      width: 100,
+                                                      height: 100,
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                    : Image.asset(
+                                                      'assets/placeholder.jpg',
+                                                      width: 100,
+                                                      height: 100,
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Row(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                                  CrossAxisAlignment.center,
                                               children: [
-                                                Text(
-                                                  item['title'],
-                                                  style: const TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
+                                                Expanded(
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 4,
+                                                        ),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          item['title'],
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 18,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Text(
+                                                          'Note: ${item['note']}',
+                                                          style: const TextStyle(
+                                                            fontSize: 14,
+                                                            color:
+                                                                Colors.black54,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 8,
+                                                        ),
+                                                        Row(
+                                                          children: [
+                                                            const Text(
+                                                              'Total: ',
+                                                              style: TextStyle(
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
+                                                            Text(
+                                                              item['price'],
+                                                              style: const TextStyle(
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  'Note: ${item['note']}',
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.black54,
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 9,
+                                                      ),
+                                                  child: Text(
+                                                    item['status'],
+                                                    style: TextStyle(
+                                                      color:
+                                                          (item['status']
+                                                                      ?.toLowerCase() ==
+                                                                  'completed')
+                                                              ? const Color(
+                                                                0xFF002F6C,
+                                                              )
+                                                              : Colors.black,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      fontSize: 14,
+                                                    ),
                                                   ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Row(
-                                                  children: [
-                                                    const Text(
-                                                      'Total: ',
-                                                      style: TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      item['price'],
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ],
                                                 ),
                                               ],
                                             ),
                                           ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 9,
-                                          ),
-                                          child: Text(
-                                            item['status'],
-                                            style: TextStyle(
-                                              color:
-                                                  (item['status']
-                                                              ?.toLowerCase() ==
-                                                          'completed')
-                                                      ? const Color(0xFF002F6C)
-                                                      : Colors.black,
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              );
-
-                              return item['isClickable']
-                                  ? GestureDetector(
-                                    onTap: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        AppRoutes.consumertrackview,
+                                        ],
                                       );
+
+                                      return item['isClickable']
+                                          ? GestureDetector(
+                                            onTap: () {
+                                              Navigator.pushNamed(
+                                                context,
+                                                AppRoutes.consumertrackview,
+                                              );
+                                            },
+                                            child: rowContent,
+                                          )
+                                          : rowContent;
                                     },
-                                    child: rowContent,
-                                  )
-                                  : rowContent;
-                            },
-                          ),
+                                  ),
                         ),
               ),
             ],

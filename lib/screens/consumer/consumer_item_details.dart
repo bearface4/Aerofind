@@ -20,21 +20,25 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
   int? productId;
   String? _token;
 
+  bool isFavorite = false;
+  int? favoriteId; // ✅ Store favorite_id for DELETE
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args =
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     productId = args['id'];
-    _loadTokenAndFetchProduct(productId!);
+    _loadTokenAndFetchData(productId!);
   }
 
-  Future<void> _loadTokenAndFetchProduct(int id) async {
+  Future<void> _loadTokenAndFetchData(int id) async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _token = prefs.getString('access_token');
     });
     await fetchProductDetails(id);
+    await fetchFavoriteStatus(id);
   }
 
   Future<void> fetchProductDetails(int id) async {
@@ -50,6 +54,39 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
       });
     } else {
       setState(() => isLoading = false);
+    }
+  }
+
+  /// ✅ Fetch the list of favorites and check if this product is included
+  Future<void> fetchFavoriteStatus(int id) async {
+    if (_token == null) return;
+
+    final url = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/favorites',
+    );
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> favorites = json.decode(response.body);
+        final fav = favorites.firstWhere(
+          (f) => f['product_id'] == id,
+          orElse: () => null,
+        );
+
+        setState(() {
+          isFavorite = fav != null;
+          favoriteId = fav != null ? fav['id'] : null;
+        });
+      } else if (response.statusCode == 401) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      }
+    } catch (e) {
+      print("❌ Failed to fetch favorite status: $e");
     }
   }
 
@@ -77,7 +114,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
       final itemName = productData!['name'] ?? 'Item';
       final message =
           quantity > 1
-              ? '$quantity $itemName added to cart'
+              ? '$quantity $itemName added to cart.'
               : '$itemName added to cart';
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,6 +129,136 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  /// ✅ Add favorite
+  Future<void> addFavorite() async {
+    if (_token == null || productData == null) return;
+
+    final url = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/favorites',
+    );
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: json.encode({'product_id': productId}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await fetchFavoriteStatus(productId!);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Added to favorites.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (response.statusCode == 401) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to add to favorites'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error adding to favorites'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// ✅ Remove favorite
+  Future<void> removeFavorite() async {
+    if (_token == null || favoriteId == null) return;
+
+    final url = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/favorites/$favoriteId',
+    );
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        setState(() {
+          isFavorite = false;
+          favoriteId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Removed from favorites'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (response.statusCode == 401) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to remove from favorites'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error removing from favorites'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// ✅ Toggle favorite with dialog confirmation for removal
+  Future<void> toggleFavorite() async {
+    if (!isFavorite) {
+      await addFavorite();
+    } else {
+      // Show confirmation dialog
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Remove from favorites?'),
+              content: const Text(
+                'Are you sure you want to remove this item from your favorites?',
+              ),
+              actions: [
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.black, // ✅ Text color black
+                  ),
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.black, // ✅ Text color black
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Remove'),
+                ),
+              ],
+            ),
+      );
+      if (confirm == true) {
+        await removeFavorite();
+      }
     }
   }
 
@@ -224,7 +391,16 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.favorite_border, size: 22),
+
+                  /// ✅ Favorite button
+                  GestureDetector(
+                    onTap: toggleFavorite,
+                    child: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      size: 22,
+                      color: isFavorite ? primaryColor : Colors.black,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -295,7 +471,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               ),
               const SizedBox(height: 24),
 
-              // Quantity Controls (just local update)
+              // Quantity Controls
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

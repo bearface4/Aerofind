@@ -1,31 +1,191 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class ConsumerFavoritePage extends StatelessWidget {
+class ConsumerFavoritePage extends StatefulWidget {
   const ConsumerFavoritePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final favorites = [
-      {
-        'title': 'Katsudon',
-        'store': 'Hoshi Takyaki - Villamor',
-        'price': '₱ 149.00',
-        'image': 'assets/katsudon.jpg',
-      },
-      {
-        'title': 'Cheeze Supreme',
-        'store': 'Hoshi Takyaki - Villamor',
-        'price': '₱ 70.00',
-        'image': 'assets/cheeze.jpg',
-      },
-      {
-        'title': 'BUY1 GET1\nChoco Krunch',
-        'store': 'Aling Nena General Merchandise',
-        'price': '₱ 70.00',
-        'image': 'assets/chococrunch.jpg',
-      },
-    ];
+  State<ConsumerFavoritePage> createState() => _ConsumerFavoritePageState();
+}
 
+class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
+  List<dynamic> favorites = [];
+  bool isLoading = true;
+  bool hasError = false;
+  String? accessToken;
+
+  @override
+  void initState() {
+    super.initState();
+    loadTokenAndFetchFavorites();
+  }
+
+  Future<void> loadTokenAndFetchFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+
+    debugPrint("🔑 Loaded access_token from SharedPreferences: $token");
+
+    if (token == null) {
+      setState(() {
+        hasError = true;
+        isLoading = false;
+      });
+      debugPrint("❌ No access token found. Cannot fetch favorites.");
+      return;
+    }
+
+    setState(() {
+      accessToken = token;
+    });
+
+    await fetchFavorites();
+  }
+
+  Future<void> fetchFavorites() async {
+    setState(() {
+      isLoading = true;
+      hasError = false;
+    });
+
+    const String url = "https://aerofind-api.onrender.com/customer/favorites";
+
+    try {
+      debugPrint("📡 GET $url");
+      debugPrint("🔑 Using Access Token: $accessToken");
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      debugPrint("📡 Status Code: ${response.statusCode}");
+      debugPrint("📦 Raw Response: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        for (var fav in data) {
+          debugPrint("---- FAVORITE ITEM ----");
+          debugPrint("Favorite ID: ${fav['id']}");
+          debugPrint("Product ID: ${fav['product_id']}");
+          debugPrint("Name: ${fav['product']?['name']}");
+          debugPrint("Price: ${fav['product']?['price']}");
+          debugPrint("Description: ${fav['product']?['description']}");
+          debugPrint("Stocks: ${fav['product']?['stocks']}");
+          debugPrint("Seller ID: ${fav['product']?['seller_id']}");
+          debugPrint("Average Rating: ${fav['product']?['average_rating']}");
+          debugPrint("Rating Count: ${fav['product']?['rating_count']}");
+          debugPrint("Image URL: ${fav['product']?['image_url']}");
+          debugPrint(
+            "Categories: ${fav['product']?['categories']?.join(', ') ?? ''}",
+          );
+        }
+
+        setState(() {
+          favorites = data;
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load favorites');
+      }
+    } catch (e) {
+      debugPrint("❌ Error fetching favorites: $e");
+      setState(() {
+        hasError = true;
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> removeFavorite(int favoriteId) async {
+    final String url =
+        "https://aerofind-api.onrender.com/customer/favorites/$favoriteId";
+
+    try {
+      debugPrint("🗑 DELETE $url");
+      debugPrint("🔑 Using Access Token: $accessToken");
+
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      debugPrint("📡 Status Code: ${response.statusCode}");
+      debugPrint("📦 Raw Response: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        setState(() {
+          favorites.removeWhere((fav) => fav['id'] == favoriteId);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Removed from favorites.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        throw Exception('Failed to remove favorite');
+      }
+    } catch (e) {
+      debugPrint("❌ Error removing favorite: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Error removing favorite',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> confirmRemoveFavorite(int favoriteId) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Remove from Favorites?'),
+            content: const Text(
+              'Are you sure you want to remove this item from your favorites?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (shouldRemove == true) {
+      await removeFavorite(favoriteId);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -34,7 +194,7 @@ class ConsumerFavoritePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40), // ← moves everything down
+              const SizedBox(height: 40),
               const Text.rich(
                 TextSpan(
                   children: [
@@ -57,83 +217,143 @@ class ConsumerFavoritePage extends StatelessWidget {
                 style: TextStyle(fontSize: 24),
               ),
               const SizedBox(height: 16),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: favorites.length,
-                  separatorBuilder:
-                      (context, index) => const Divider(
-                        color: Colors.black12,
-                        thickness: 1,
-                        height: 32,
-                      ),
-                  itemBuilder: (context, index) {
-                    final item = favorites[index];
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+
+              if (isLoading)
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (hasError)
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: fetchFavorites,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.asset(
-                            item['image']!,
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
+                        const SizedBox(height: 200),
+                        const Center(
+                          child: Text(
+                            'Failed to load favorites',
+                            style: TextStyle(color: Colors.red),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['title']!,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        item['store']!,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.black54,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        item['price']!,
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 9),
-                                child: Icon(
-                                  Icons.favorite,
-                                  color: Color(0xFF002F6C),
-                                ),
-                              ),
-                            ],
+                        const SizedBox(height: 8),
+                        Center(
+                          child: ElevatedButton(
+                            onPressed: fetchFavorites,
+                            child: const Text('Retry'),
                           ),
                         ),
                       ],
-                    );
-                  },
+                    ),
+                  ),
+                )
+              else if (favorites.isEmpty)
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: fetchFavorites,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 200),
+                        Center(child: Text('No favorites found')),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: fetchFavorites,
+                    child: ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: favorites.length,
+                      separatorBuilder:
+                          (context, index) => const Divider(
+                            color: Colors.black12,
+                            thickness: 1,
+                            height: 32,
+                          ),
+                      itemBuilder: (context, index) {
+                        final fav = favorites[index];
+                        final product = fav['product'] ?? {};
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                product['image_url'] ??
+                                    'https://via.placeholder.com/100',
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            product['name'] ?? '',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            "Seller ID: ${product['seller_id'] ?? ''}",
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.black54,
+                                              decoration:
+                                                  TextDecoration.underline,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            "₱ ${product['price']?.toString() ?? ''}",
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 9),
+                                    child: GestureDetector(
+                                      onTap:
+                                          () =>
+                                              confirmRemoveFavorite(fav['id']),
+                                      child: const Icon(
+                                        Icons.favorite,
+                                        color: Color(0xFF002F6C),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
