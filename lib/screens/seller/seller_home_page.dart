@@ -1,201 +1,535 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
-class SellerHomePage extends StatelessWidget {
+class SellerHomePage extends StatefulWidget {
   const SellerHomePage({super.key});
 
   @override
+  State<SellerHomePage> createState() => _SellerHomePageState();
+}
+
+class _SellerHomePageState extends State<SellerHomePage> {
+  static const Color _primary = Color(0xff002366);
+
+  String? _token;
+
+  bool _isLoadingOrders = false;
+  bool _isLoadingProducts = false;
+
+  // NEW: controls whether to show all orders or only first 2
+  bool _showAllOrders = false;
+
+  List<Map<String, dynamic>> _orders = [];
+  List<Map<String, dynamic>> _products = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTokenAndFetchAll();
+  }
+
+  Future<void> _loadTokenAndFetchAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    final t = prefs.getString('access_token');
+    _token = t;
+    debugPrint('[INIT] Loaded access_token? ${t != null && t.isNotEmpty}');
+    await _refreshAll();
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([_fetchOrders(), _fetchProducts()]);
+  }
+
+  // ---------- Helpers ----------
+  String _firstK(String s, int k) =>
+      s.length <= k ? s : '${s.substring(0, k)}…';
+
+  Map<String, dynamic> _deepStringMap(Map input) {
+    final Map<String, dynamic> out = {};
+    input.forEach((key, value) {
+      final k = key?.toString() ?? '';
+      if (value is Map) {
+        out[k] = _deepStringMap(value);
+      } else if (value is List) {
+        out[k] = value.map((e) => e is Map ? _deepStringMap(e) : e).toList();
+      } else {
+        out[k] = value;
+      }
+    });
+    return out;
+  }
+
+  int _toInt(dynamic v) =>
+      v is int ? v : int.tryParse(v?.toString() ?? '') ?? 0;
+  num _toNum(dynamic v) =>
+      v is num ? v : num.tryParse(v?.toString() ?? '') ?? 0;
+
+  // ---------- GET /seller/orders ----------
+  Future<void> _fetchOrders() async {
+    if (!mounted) return;
+    if (_token == null || _token!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing access token. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    const endpoint = 'https://aerofind-api.onrender.com/seller/orders';
+    debugPrint('[ORD][GET] $endpoint');
+    setState(() => _isLoadingOrders = true);
+    final sw = Stopwatch()..start();
+
+    try {
+      final resp = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+      sw.stop();
+      debugPrint(
+        '[ORD][RESP] Status: ${resp.statusCode} (${sw.elapsedMilliseconds} ms)',
+      );
+      debugPrint('[ORD][RESP] Body (first 1500): ${_firstK(resp.body, 1500)}');
+
+      if (resp.statusCode == 200) {
+        final decoded = jsonDecode(resp.body);
+        List list;
+        if (decoded is List) {
+          list = decoded;
+        } else if (decoded is Map && decoded['items'] is List) {
+          list = decoded['items'] as List;
+        } else if (decoded is Map<String, dynamic>) {
+          list = [decoded];
+        } else {
+          list = const [];
+        }
+
+        final parsed =
+            list.map<Map<String, dynamic>>((e) {
+              final m = _deepStringMap(e as Map);
+              final product =
+                  (m['product'] is Map)
+                      ? _deepStringMap(m['product'])
+                      : <String, dynamic>{};
+
+              final qty = _toInt(m['quantity']);
+              final prodName = (product['name'] ?? '').toString();
+              final imageUrl =
+                  (product['image_url'] ?? product['image'] ?? '').toString();
+
+              return {
+                'id': _toInt(m['id']),
+                'itemsText':
+                    '${qty > 0 ? qty : 1}x ${prodName.isNotEmpty ? prodName : 'Item'}',
+                'note': (m['notes'] ?? '').toString(),
+                'status': (m['status'] ?? '').toString(),
+                'image_url': imageUrl,
+              };
+            }).toList();
+
+        if (!mounted) return;
+        setState(() {
+          _orders = parsed;
+          // NEW: collapse orders after (re)fetch so default shows at most 2
+          _showAllOrders = false;
+        });
+      } else if (resp.statusCode == 401) {
+        if (!mounted) return;
+        setState(() {
+          _orders = [];
+          _showAllOrders = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _orders = [];
+          _showAllOrders = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to fetch orders (${resp.statusCode}).'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      sw.stop();
+      debugPrint('[ORD][ERROR] $e');
+      if (!mounted) return;
+      setState(() {
+        _orders = [];
+        _showAllOrders = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network error while fetching orders.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoadingOrders = false);
+    }
+  }
+
+  // ---------- GET /seller/products (for Stocks) ----------
+  Future<void> _fetchProducts() async {
+    if (!mounted) return;
+    if (_token == null || _token!.isEmpty) {
+      return;
+    }
+
+    const endpoint = 'https://aerofind-api.onrender.com/seller/products';
+    debugPrint('[STK][GET] $endpoint');
+    setState(() => _isLoadingProducts = true);
+    final sw = Stopwatch()..start();
+
+    try {
+      final resp = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+      sw.stop();
+      debugPrint(
+        '[STK][RESP] Status: ${resp.statusCode} (${sw.elapsedMilliseconds} ms)',
+      );
+      debugPrint('[STK][RESP] Body (first 1500): ${_firstK(resp.body, 1500)}');
+
+      if (resp.statusCode == 200) {
+        final decoded = jsonDecode(resp.body);
+        List list;
+        if (decoded is List) {
+          list = decoded;
+        } else if (decoded is Map && decoded['items'] is List) {
+          list = decoded['items'] as List;
+        } else if (decoded is Map<String, dynamic>) {
+          list = [decoded];
+        } else {
+          list = const [];
+        }
+
+        final parsed =
+            list.map<Map<String, dynamic>>((e) {
+              final m = _deepStringMap(e as Map);
+              return {
+                'id': _toInt(m['id']),
+                'name': (m['name'] ?? '').toString(),
+                'stocks': _toInt(m['stocks']),
+                'image_url': (m['image_url'] ?? m['image'] ?? '').toString(),
+              };
+            }).toList();
+
+        if (!mounted) return;
+        setState(() => _products = parsed);
+      } else if (resp.statusCode == 401) {
+        if (!mounted) return;
+        setState(() => _products = []);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        setState(() => _products = []);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to fetch products (${resp.statusCode}).'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      sw.stop();
+      debugPrint('[STK][ERROR] $e');
+      if (!mounted) return;
+      setState(() => _products = []);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network error while fetching products.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoadingProducts = false);
+    }
+  }
+
+  // ---------- UI ----------
+  @override
   Widget build(BuildContext context) {
+    // Helper derived values for Orders
+    final hasOrders = _orders.isNotEmpty;
+    final hasExtraOrders = _orders.length > 2;
+    final visibleOrders =
+        _showAllOrders || !hasExtraOrders ? _orders : _orders.take(2).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xfff8f8f8),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Blue Card
-              Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xff002366),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(40),
-                    bottomRight: Radius.circular(40),
+        child: RefreshIndicator(
+          color: _primary,
+          onRefresh:
+              _refreshAll, // pull-down refresh for both Orders & Products
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Blue Card
+                Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Color(0xff002366),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(40),
+                      bottomRight: Radius.circular(40),
+                    ),
                   ),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 32,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AEROFIND',
-                      style: GoogleFonts.inter(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            'Total sales',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          RichText(
-                            text: TextSpan(
-                              children: [
-                                const TextSpan(
-                                  text: '₱',
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: '10,250.00',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Top Performing Products Title
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Top performing product/s',
-                  style: GoogleFonts.inter(fontSize: 16, color: Colors.grey),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Product Cards Centered Horizontally
-              Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _topProductCard(
-                      imageAsset: 'assets/chickenwings.jpg',
-                      name: 'Chicken Wings',
-                      rating: 4.9,
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      height: 110,
-                      width: 1,
-                      color: Colors.grey.shade300,
-                    ),
-                    const SizedBox(width: 12),
-                    _topProductCard(
-                      imageAsset: 'assets/creamybeef.jpg',
-                      name: 'Creamy Pepper Beef Bowl',
-                      rating: 4.9,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 15),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Divider(color: Colors.grey),
-              ),
-
-              // Orders
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Orders',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      child: const Text(
-                        "View More →",
-                        style: TextStyle(
-                          color: Color(0xff002366),
-                          fontWeight: FontWeight.w500,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AEROFIND',
+                        style: GoogleFonts.inter(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              _orderTile(
-                imageAsset: 'assets/porkchop.webp',
-                items: '2x Porkchop',
-                note: 'No gravy please, thank you.',
-                status: 'Order Placed',
-              ),
-              _orderTile(
-                imageAsset: 'assets/burgersteak.jpg',
-                items: '1x Burger steak\n1x Chicken Wings',
-                note: 'none.',
-                status: 'Delivering Order',
-              ),
-
-              const SizedBox(height: 24),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Divider(color: Colors.grey),
-              ),
-
-              // Stocks
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Stocks',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: Colors.grey,
+                      const SizedBox(height: 20),
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              'Total sales',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            RichText(
+                              text: TextSpan(
+                                children: [
+                                  const TextSpan(
+                                    text: '₱',
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: '10,250.00',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              _stockTile(
-                imageAsset: 'assets/burgersteak.jpg',
-                name: 'Burger Steak',
-                stock: 5,
-              ),
-              const SizedBox(height: 40),
-            ],
+
+                const SizedBox(height: 20),
+
+                // Top Performing Products Title (static sample cards)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Top performing product/s',
+                    style: GoogleFonts.inter(fontSize: 16, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _topProductCard(
+                        imageAsset: 'assets/chickenwings.jpg',
+                        name: 'Chicken Wings',
+                        rating: 4.9,
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        height: 110,
+                        width: 1,
+                        color: Colors.grey.shade300,
+                      ),
+                      const SizedBox(width: 12),
+                      _topProductCard(
+                        imageAsset: 'assets/creamybeef.jpg',
+                        name: 'Creamy Pepper Beef Bowl',
+                        rating: 4.9,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Divider(color: Colors.grey),
+                ),
+
+                // Orders header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Orders',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      // NEW: View More / View Less toggle, shown only if there are > 2 orders
+                      if (hasOrders && hasExtraOrders)
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _showAllOrders = !_showAllOrders);
+                          },
+                          child: Text(
+                            _showAllOrders ? 'View Less ↑' : 'View More →',
+                            style: const TextStyle(
+                              color: Color(0xff002366),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Orders content
+                if (_isLoadingOrders)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (!hasOrders)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'No orders yet.',
+                      style: GoogleFonts.inter(color: Colors.black54),
+                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 8),
+                    itemCount: visibleOrders.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, i) {
+                      final o = visibleOrders[i];
+                      return _orderTileDynamic(
+                        imageUrl: (o['image_url'] ?? '').toString(),
+                        items: (o['itemsText'] ?? '').toString(),
+                        note: (o['note'] ?? '').toString(),
+                        status: (o['status'] ?? '').toString(),
+                      );
+                    },
+                  ),
+
+                const SizedBox(height: 24),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Divider(color: Colors.grey),
+                ),
+
+                // Stocks (from /seller/products)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Stocks',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                if (_isLoadingProducts)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_products.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      'No products yet.',
+                      style: GoogleFonts.inter(color: Colors.black54),
+                    ),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 40),
+                    itemCount: _products.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, i) {
+                      final p = _products[i];
+                      return _stockTileDynamic(
+                        imageUrl: (p['image_url'] ?? '').toString(),
+                        name: (p['name'] ?? '').toString(),
+                        stock: _toInt(p['stocks']),
+                      );
+                    },
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  // ------- UI bits -------
   Widget _topProductCard({
     required String imageAsset,
     required String name,
@@ -268,26 +602,54 @@ class SellerHomePage extends StatelessWidget {
     );
   }
 
-  Widget _orderTile({
-    required String imageAsset,
+  Widget _orderTileDynamic({
+    required String imageUrl,
     required String items,
     required String note,
     required String status,
   }) {
+    final isNetwork = imageUrl.startsWith('http');
+
+    final thumb = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child:
+          isNetwork
+              ? Image.network(
+                imageUrl,
+                height: 60,
+                width: 60,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (_, __, ___) => Image.asset(
+                      'assets/placeholder.png',
+                      height: 60,
+                      width: 60,
+                      fit: BoxFit.cover,
+                    ),
+              )
+              : (imageUrl.isNotEmpty
+                  ? Image.asset(
+                    imageUrl,
+                    height: 60,
+                    width: 60,
+                    fit: BoxFit.cover,
+                  )
+                  : Image.asset(
+                    'assets/placeholder.png',
+                    height: 60,
+                    width: 60,
+                    fit: BoxFit.cover,
+                  )),
+    );
+
+    final noteText = note.trim().isEmpty ? 'none.' : note;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              imageAsset,
-              height: 60,
-              width: 60,
-              fit: BoxFit.cover,
-            ),
-          ),
+          thumb,
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -303,12 +665,12 @@ class SellerHomePage extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Note: $note',
+                        'Note: $noteText',
                         style: const TextStyle(color: Colors.black54),
                       ),
                     ),
                     Text(
-                      status,
+                      status.isNotEmpty ? status : '—',
                       style: const TextStyle(
                         color: Color(0xff002366),
                         fontWeight: FontWeight.w500,
@@ -324,53 +686,83 @@ class SellerHomePage extends StatelessWidget {
     );
   }
 
-  Widget _stockTile({
-    required String imageAsset,
+  Widget _stockTileDynamic({
+    required String imageUrl,
     required String name,
     required int stock,
   }) {
+    final isNetwork = imageUrl.startsWith('http');
+
+    final thumb = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child:
+          isNetwork
+              ? Image.network(
+                imageUrl,
+                height: 60,
+                width: 60,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (_, __, ___) => Image.asset(
+                      'assets/placeholder.png',
+                      height: 60,
+                      width: 60,
+                      fit: BoxFit.cover,
+                    ),
+              )
+              : (imageUrl.isNotEmpty
+                  ? Image.asset(
+                    imageUrl,
+                    height: 60,
+                    width: 60,
+                    fit: BoxFit.cover,
+                  )
+                  : Image.asset(
+                    'assets/placeholder.png',
+                    height: 60,
+                    width: 60,
+                    fit: BoxFit.cover,
+                  )),
+    );
+
+    final stockColor = stock <= 5 ? Colors.red : Colors.black87;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              imageAsset,
-              height: 60,
-              width: 60,
-              fit: BoxFit.cover,
-            ),
-          ),
+          thumb,
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15,
-                ),
-              ),
-              const SizedBox(height: 4),
-              RichText(
-                text: TextSpan(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isNotEmpty ? name : 'Unnamed Product',
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
                   ),
-                  children: [
-                    const TextSpan(text: 'Stocks: '),
-                    TextSpan(
-                      text: stock.toString(),
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                    children: [
+                      const TextSpan(text: 'Stocks: '),
+                      TextSpan(
+                        text: stock.toString(),
+                        style: TextStyle(color: stockColor),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
