@@ -1,10 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:aerofind/routes/app_routes.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart';
 
 class SellerProfilePage extends StatefulWidget {
   const SellerProfilePage({super.key});
@@ -17,6 +20,11 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
   bool isEditing = false;
   bool isLoading = true;
   bool isSaving = false;
+
+  String _firstK(String s, int k) {
+    if (s.length <= k) return s;
+    return s.substring(0, k) + '...';
+  }
 
   final TextEditingController storeNameController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
@@ -80,7 +88,7 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // delivery_fee can be int/double/string — normalize to string
+        // Normalize delivery_fee
         final feeVal = data['delivery_fee'];
         String normalizedFee;
         if (feeVal == null) {
@@ -255,6 +263,202 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
     );
   }
 
+  // ---------------- Profile image picker and upload ----------------
+  Future<void> _pickAndUploadProfileImage() async {
+    if (profileImage != 'assets/placeholder.png')
+      return; // Disable image selection when profile image is not null
+
+    if (isEditing) return; // Disable image selection when in edit mode
+
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (image == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token') ?? '';
+
+    // Upload to server
+    final uri = Uri.parse(
+      'https://aerofind-api.onrender.com/storage/upload/seller-profile-image',
+    );
+
+    // Create the multipart request with the correct field name 'image'
+    final request =
+        http.MultipartRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $token'
+          ..files.add(
+            await http.MultipartFile.fromPath(
+              'image',
+              image.path,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          ); // Assuming the image is in JPEG format, change if needed.
+
+    // Send the request
+    final response = await request.send();
+    final resp = await http.Response.fromStream(response);
+
+    if (resp.statusCode == 200) {
+      setState(() {
+        profileImage = image.path; // Update profile image path
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile image uploaded successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await fetchProfile(); // Refresh the profile after upload
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to upload profile image'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ---------------- Banner image picker and upload ----------------
+  Future<void> _pickAndUploadBannerImage() async {
+    if (bannerImage != 'assets/placeholder.png')
+      return; // Disable image selection when banner image is not null
+
+    if (isEditing) return; // Disable image selection when in edit mode
+
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (image == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token') ?? '';
+
+    // Upload to server
+    final uri = Uri.parse(
+      'https://aerofind-api.onrender.com/storage/upload/seller-banner',
+    );
+
+    // Create the multipart request with the correct field name 'image'
+    final request =
+        http.MultipartRequest('POST', uri)
+          ..headers['Authorization'] = 'Bearer $token'
+          ..files.add(
+            await http.MultipartFile.fromPath(
+              'image',
+              image.path,
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          ); // Assuming the image is in JPEG format, change if needed.
+
+    // Send the request
+    final response = await request.send();
+    final resp = await http.Response.fromStream(response);
+
+    if (resp.statusCode == 200) {
+      setState(() {
+        bannerImage = image.path; // Update banner image path
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Banner image uploaded successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await fetchProfile(); // Refresh the profile after upload
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to upload banner image'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ---------------- Profile image delete ----------------
+  Future<void> _deleteProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token') ?? '';
+
+    // Delete the profile image
+    final uri = Uri.parse(
+      'https://aerofind-api.onrender.com/storage/delete/seller-profile-image',
+    );
+
+    final response = await http.delete(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        profileImage =
+            'assets/placeholder.png'; // Reset to placeholder on delete
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile image deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await fetchProfile(); // Refresh the profile after deletion
+    } else {
+      debugPrint('Error deleting profile image: ${response.statusCode}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete profile image'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ---------------- Banner image delete ----------------
+  Future<void> _deleteBannerImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token') ?? '';
+
+    // Delete the banner image
+    final uri = Uri.parse(
+      'https://aerofind-api.onrender.com/storage/delete/seller-banner',
+    );
+
+    final response = await http.delete(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        bannerImage =
+            'assets/placeholder.png'; // Reset to placeholder on delete
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Banner image deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await fetchProfile(); // Refresh the profile after deletion
+    } else {
+      debugPrint('Error deleting banner image: ${response.statusCode}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete banner image'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bannerWidget =
@@ -282,7 +486,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
     final ImageProvider avatarProvider =
         _isNetworkUrl(profileImage)
             ? NetworkImage(profileImage)
-            : AssetImage(profileImage) as ImageProvider;
+            : FileImage(
+              File(profileImage),
+            ); // Handle both network and file images.
 
     return Scaffold(
       backgroundColor: const Color(0xfff8f8f8),
@@ -292,19 +498,54 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
-              // Banner and profile
               Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
-                  bannerWidget,
+                  GestureDetector(
+                    onTap:
+                        isEditing
+                            ? null
+                            : _pickAndUploadBannerImage, // Disable image picker in edit mode
+                    child: bannerWidget,
+                  ),
                   Positioned(
                     bottom: -50,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: avatarProvider,
+                    child: GestureDetector(
+                      onTap:
+                          isEditing
+                              ? null
+                              : _pickAndUploadProfileImage, // Disable image picker in edit mode
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage:
+                            profileImage == 'assets/placeholder.png'
+                                ? AssetImage('assets/placeholder.png')
+                                : avatarProvider,
+                      ),
                     ),
                   ),
+                  // Trash bin for deleting profile image (under the store type text)
+                  if (profileImage != 'assets/placeholder.png' && isEditing)
+                    Positioned(
+                      top: 150, // Placed under the store type
+                      left: 0,
+                      right: 0,
+                      child: IconButton(
+                        onPressed: _deleteProfileImage,
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                      ),
+                    ),
+                  // Trash bin for deleting banner image (Bottom-right)
+                  if (bannerImage != 'assets/placeholder.png' && isEditing)
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: IconButton(
+                        onPressed: _deleteBannerImage,
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 60),
@@ -383,7 +624,6 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                   child: CircularProgressIndicator(),
                 )
               else if (isEditing)
-                // EDIT MODE: show editable fields including Delivery Fee
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -403,7 +643,6 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                   ),
                 )
               else
-                // VIEW MODE: DO NOT show Delivery Fee here
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
