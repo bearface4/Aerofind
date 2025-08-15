@@ -16,85 +16,207 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
   bool isLoading = true;
   double deliveryFee = 50.0;
 
+  // Optional: keep latest backend-provided total item count for debugging
+  int? backendTotalItems;
+
   @override
   void initState() {
     super.initState();
     fetchCartItems();
   }
 
+  int _computeLocalTotalQuantity(List<dynamic> items) {
+    return items.fold<int>(0, (sum, item) {
+      final int q =
+          (item['quantity'] ?? 1) is int
+              ? (item['quantity'] ?? 1)
+              : int.tryParse((item['quantity'] ?? 1).toString()) ?? 1;
+      return sum + q;
+    });
+  }
+
   Future<void> fetchCartItems() async {
+    print('[CART][FETCH] Starting fetchCartItems()');
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token') ?? '';
-      if (token.isEmpty) return;
+      print('[CART][FETCH] Token loaded? ${token.isNotEmpty}');
+      if (token.isEmpty) {
+        print('[CART][FETCH][WARN] No token. Aborting GET /customer/cart');
+        setState(() => isLoading = false);
+        return;
+      }
 
+      final uri = Uri.parse('https://aerofind-api.onrender.com/customer/cart');
+      print('[CART][FETCH] GET $uri');
+      print(
+        '[CART][FETCH] Headers: {Authorization: Bearer ***, Content-Type: application/json}',
+      );
       final response = await http.get(
-        Uri.parse('https://aerofind-api.onrender.com/customer/cart'),
+        uri,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
+      print('[CART][FETCH] Status: ${response.statusCode}');
+      print('[CART][FETCH] Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          cartItems = data['items'];
-          isLoading = false;
-        });
+        dynamic data;
+        try {
+          data = json.decode(response.body);
+        } catch (e) {
+          print('[CART][FETCH][ERROR] JSON decode failed: $e');
+          setState(() => isLoading = false);
+          return;
+        }
+
+        if (data is Map<String, dynamic>) {
+          // Helpful debug: what keys did backend send?
+          print('[CART][FETCH] Response keys: ${data.keys.toList()}');
+
+          // Try to pick up backend-provided "total items" from common keys
+          final dynamic possibleTotal =
+              data['total_items'] ??
+              data['total_quantity'] ??
+              data['item_count'] ??
+              data['cart_count'] ??
+              data['count'] ??
+              data['totalItems'];
+
+          if (possibleTotal != null) {
+            try {
+              backendTotalItems = int.tryParse(possibleTotal.toString());
+              print('[CART][FETCH] backendTotalItems: $backendTotalItems');
+            } catch (_) {
+              print(
+                '[CART][FETCH][WARN] Could not parse backend total items from: $possibleTotal',
+              );
+            }
+          } else {
+            print(
+              '[CART][FETCH] No explicit total-items field found in response.',
+            );
+          }
+
+          final items = (data['items'] as List?) ?? const [];
+          final localTotal = _computeLocalTotalQuantity(items);
+          print('[CART][FETCH] Local computed total quantity: $localTotal');
+          if (backendTotalItems != null) {
+            print(
+              '[CART][FETCH] Compare -> backend: $backendTotalItems | local: $localTotal',
+            );
+          }
+
+          // Optional debug: subtotal from items (matches UI calc)
+          final localSubtotal = items.fold<double>(
+            0.0,
+            (sum, it) =>
+                sum +
+                ((it['product']?['price'] ?? 0).toDouble()) *
+                    ((it['quantity'] ?? 1) as num).toDouble(),
+          );
+          print(
+            '[CART][FETCH] Local computed subtotal: ₱${localSubtotal.toStringAsFixed(2)}',
+          );
+
+          setState(() {
+            cartItems = items;
+            isLoading = false;
+          });
+        } else if (data is List) {
+          // Fallback if backend returns a raw list (unlikely but we’ll log)
+          print(
+            '[CART][FETCH][WARN] Response is a List; expected Map with "items". Using raw list.',
+          );
+          final localTotal = _computeLocalTotalQuantity(data);
+          print('[CART][FETCH] Local computed total quantity: $localTotal');
+          setState(() {
+            cartItems = data;
+            isLoading = false;
+          });
+        } else {
+          print(
+            '[CART][FETCH][ERROR] Unexpected response type: ${data.runtimeType}',
+          );
+          setState(() => isLoading = false);
+        }
       } else {
+        print('[CART][FETCH][ERROR] GET failed: ${response.statusCode}');
         setState(() => isLoading = false);
       }
     } catch (e) {
+      print('[CART][FETCH][ERROR] Exception: $e');
       setState(() => isLoading = false);
     }
   }
 
   Future<void> updateQuantityInBackend(int itemId, int newQuantity) async {
+    print('[CART][UPDATE] itemId=$itemId -> newQuantity=$newQuantity');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token') ?? '';
 
+    if (token.isEmpty) {
+      print('[CART][UPDATE][WARN] No token. Aborting.');
+      return;
+    }
+
     if (newQuantity < 1) {
+      final deleteUri = Uri.parse(
+        'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
+      );
+      print('[CART][DELETE] DELETE $deleteUri');
       final deleteResponse = await http.delete(
-        Uri.parse(
-          'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
-        ),
+        deleteUri,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+      print('[CART][DELETE] Status: ${deleteResponse.statusCode}');
+      print('[CART][DELETE] Body: ${deleteResponse.body}');
 
       if (deleteResponse.statusCode == 200) {
         await fetchCartItems();
         showSnackBar("Item removed from cart");
       } else {
-        debugPrint('Failed to delete item: ${deleteResponse.statusCode}');
+        debugPrint(
+          '[CART][DELETE][ERROR] Failed: ${deleteResponse.statusCode}',
+        );
       }
-
       return;
     }
 
     try {
+      final putUri = Uri.parse(
+        'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
+      );
+      final body = json.encode({'quantity': newQuantity});
+      print('[CART][PUT] PUT $putUri');
+      print('[CART][PUT] Body: $body');
+
       final response = await http.put(
-        Uri.parse(
-          'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
-        ),
+        putUri,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({'quantity': newQuantity}),
+        body: body,
       );
+
+      print('[CART][PUT] Status: ${response.statusCode}');
+      print('[CART][PUT] Body: ${response.body}');
 
       if (response.statusCode == 200) {
         await fetchCartItems();
         showSnackBar("Quantity updated");
       } else {
-        debugPrint('Failed to update quantity: ${response.statusCode}');
+        debugPrint('[CART][PUT][ERROR] Failed: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error updating quantity: $e');
+      debugPrint('[CART][PUT][ERROR] Exception: $e');
     }
   }
 
@@ -103,7 +225,9 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     final currentQuantity = item['quantity'] ?? 1;
     final newQuantity = currentQuantity + change;
     final itemId = item['id'];
-
+    print(
+      '[CART][QTY] index=$index current=$currentQuantity change=$change -> new=$newQuantity',
+    );
     updateQuantityInBackend(itemId, newQuantity);
   }
 
@@ -272,6 +396,13 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: () {
+                            print(
+                              '[CART][CHECKOUT] totalItems(local)=${_computeLocalTotalQuantity(cartItems)} '
+                              '| backendTotalItems=$backendTotalItems '
+                              '| subtotal=₱${subTotal.toStringAsFixed(2)} '
+                              '| delivery=₱${deliveryFee.toStringAsFixed(2)} '
+                              '| total=₱${total.toStringAsFixed(2)}',
+                            );
                             Navigator.pushNamed(
                               context,
                               AppRoutes.consumercheckout,

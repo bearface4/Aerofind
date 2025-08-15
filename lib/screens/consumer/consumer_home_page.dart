@@ -17,6 +17,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   List<Map<String, dynamic>> products = [];
   List<Map<String, dynamic>> allProducts = []; // store all fetched products
   String? _token;
+  int _cartCount = 0; // cart badge count
+
   final TextEditingController _searchController = TextEditingController();
 
   final List<Map<String, String>> categories = const [
@@ -51,6 +53,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     });
 
     await fetchProducts();
+    await fetchCartCount(); // load cart count on start
   }
 
   Future<void> fetchProducts() async {
@@ -59,6 +62,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     if (_token == null) return;
 
     try {
+      print('[PRODUCTS] GET $url');
+      print(
+        '[PRODUCTS] Headers: {Authorization: Bearer ***, Content-Type: application/json}',
+      );
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -67,11 +74,14 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         },
       );
 
+      print('[PRODUCTS] Status Code: ${response.statusCode}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        print('[PRODUCTS] Received ${data.length} items');
 
         final fetchedProducts =
             data.map<Map<String, dynamic>>((item) {
+              // Map out all fields we use, now including store_type
               return {
                 'id': item['id'],
                 'title': item['name'],
@@ -83,8 +93,32 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 'average_rating': item['average_rating'],
                 'rating_count': item['rating_count'],
                 'categories': item['categories'],
+                'store_type': item['store_type'], // store_type included
               };
             }).toList();
+
+        // Log each product's store_type for verification
+        for (final p in fetchedProducts) {
+          print(
+            '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}',
+          );
+        }
+
+        // Quick summary: unique store types + missing count
+        final uniqueStoreTypes = <String>{};
+        int missingStoreType = 0;
+        for (final p in fetchedProducts) {
+          final st = p['store_type'];
+          if (st == null || (st is String && st.trim().isEmpty)) {
+            missingStoreType++;
+          } else {
+            uniqueStoreTypes.add(st.toString());
+          }
+        }
+        print(
+          '[PRODUCTS] Unique store_type values: ${uniqueStoreTypes.toList()}',
+        );
+        print('[PRODUCTS] Items missing store_type: $missingStoreType');
 
         setState(() {
           allProducts = List.from(fetchedProducts);
@@ -92,10 +126,97 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           _isLoading = false;
         });
       } else if (response.statusCode == 401) {
+        print('[PRODUCTS][ERROR] Unauthorized (401). Redirecting to login.');
         Navigator.pushReplacementNamed(context, AppRoutes.login);
+      } else {
+        print('[PRODUCTS][ERROR] Unexpected status ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      print('Error fetching products: $e');
+      print('[PRODUCTS][ERROR] Exception while fetching products: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Fetch total cart items for the badge — USE /customer/cart (returns total_items)
+  Future<void> fetchCartCount() async {
+    if (_token == null || _token!.isEmpty) {
+      print('[CARTCOUNT][WARN] No token; skipping count fetch.');
+      return;
+    }
+
+    const url = 'https://aerofind-api.onrender.com/customer/cart';
+    print('[CARTCOUNT] GET $url');
+    print(
+      '[CARTCOUNT] Headers: {Authorization: Bearer ***, Content-Type: application/json}',
+    );
+    try {
+      final resp = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('[CARTCOUNT] Status: ${resp.statusCode}');
+      print('[CARTCOUNT] Body: ${resp.body}');
+
+      if (resp.statusCode == 200) {
+        final decoded = json.decode(resp.body);
+
+        int totalItems = 0;
+        if (decoded is Map<String, dynamic>) {
+          // Prefer backend-provided total_items
+          if (decoded.containsKey('total_items')) {
+            totalItems = (decoded['total_items'] as num?)?.toInt() ?? 0;
+            print('[CARTCOUNT] Using total_items from Map: $totalItems');
+          } else {
+            // Fallback: compute from items if available
+            final items = (decoded['items'] as List?) ?? const [];
+            for (final it in items) {
+              final q =
+                  (it is Map && it['quantity'] != null)
+                      ? (it['quantity'] is num
+                          ? (it['quantity'] as num).toInt()
+                          : int.tryParse(it['quantity'].toString()) ?? 1)
+                      : 1;
+              totalItems += q;
+            }
+            print('[CARTCOUNT] Computed total from items: $totalItems');
+          }
+        } else if (decoded is List) {
+          // Extremely unlikely for this endpoint, but handle anyway
+          for (final it in decoded) {
+            final q =
+                (it is Map && it['quantity'] != null)
+                    ? (it['quantity'] is num
+                        ? (it['quantity'] as num).toInt()
+                        : int.tryParse(it['quantity'].toString()) ?? 1)
+                    : 1;
+            totalItems += q;
+          }
+          print('[CARTCOUNT] Computed total from List: $totalItems');
+        } else {
+          print(
+            '[CARTCOUNT][WARN] Unexpected response type: ${decoded.runtimeType}',
+          );
+        }
+
+        setState(() {
+          _cartCount = totalItems;
+        });
+      } else if (resp.statusCode == 401) {
+        print('[CARTCOUNT][ERROR] 401 Unauthorized — cannot fetch cart count.');
+      } else {
+        print('[CARTCOUNT][ERROR] Unexpected status ${resp.statusCode}');
+      }
+    } catch (e) {
+      print('[CARTCOUNT][ERROR] Exception: $e');
     }
   }
 
@@ -150,6 +271,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                   'average_rating': null,
                   'rating_count': null,
                   'categories': [],
+                  'store_type':
+                      item['store_type'], // may be null/not provided by search API
                 },
           );
           matchedProducts.add(match);
@@ -178,6 +301,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
     const url = 'https://aerofind-api.onrender.com/customer/cart/items';
     try {
+      print('[CART] POST $url');
       final response = await http.post(
         Uri.parse(url),
         headers: {
@@ -187,6 +311,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         body: jsonEncode({"product_id": productId, "quantity": 1}),
       );
 
+      print('[CART] Status Code: ${response.statusCode}');
+      print('[CART] Response Body: ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -194,6 +320,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             backgroundColor: Colors.green,
           ),
         );
+        // Refresh the cart count after successful add
+        await fetchCartCount();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -205,6 +333,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         );
       }
     } catch (e) {
+      print('[CART][ERROR] Exception: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('An error occurred while adding item to cart'),
@@ -223,6 +352,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             : RefreshIndicator(
               onRefresh: () async {
                 await fetchProducts();
+                await fetchCartCount(); // also refresh badge on pull
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -238,6 +368,22 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 ),
               ),
             ),
+
+        // Centered "Product not found." overlay when there are zero results
+        if (!_isLoading && products.isEmpty)
+          IgnorePointer(
+            child: Center(
+              child: Text(
+                'Product not found.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+
         _buildFloatingCartButton(),
       ],
     );
@@ -282,6 +428,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 if (value.trim().isEmpty) {
                   setState(() => _isLoading = true);
                   fetchProducts();
+                  fetchCartCount(); // keep badge fresh after clearing search
                 }
               },
               onSubmitted: (value) => searchProducts(value),
@@ -441,10 +588,11 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                                 arguments: {
                                   'product_id': product['id'],
                                   'quantity': 1,
-                                  // You can include more if your checkout expects it:
+                                  // Optionally include more:
                                   // 'price': product['price'],
                                   // 'title': product['title'],
                                   // 'seller_id': product['seller_id'],
+                                  // 'store_type': product['store_type'],
                                 },
                               );
                             },
@@ -495,6 +643,9 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   }
 
   Widget _buildFloatingCartButton() {
+    // Show 99+ if really large counts
+    String badge = _cartCount > 99 ? '99+' : '$_cartCount';
+
     return Positioned(
       bottom: 60,
       right: 16,
@@ -523,15 +674,15 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 ],
               ),
             ),
-            const Positioned(
+            Positioned(
               right: 0,
               top: 0,
               child: CircleAvatar(
                 radius: 8,
                 backgroundColor: Colors.red,
                 child: Text(
-                  '0',
-                  style: TextStyle(fontSize: 10, color: Colors.white),
+                  badge,
+                  style: const TextStyle(fontSize: 10, color: Colors.white),
                 ),
               ),
             ),
