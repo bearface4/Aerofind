@@ -74,10 +74,8 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
         }
 
         if (data is Map<String, dynamic>) {
-          // Helpful debug: what keys did backend send?
           print('[CART][FETCH] Response keys: ${data.keys.toList()}');
 
-          // Try to pick up backend-provided "total items" from common keys
           final dynamic possibleTotal =
               data['total_items'] ??
               data['total_quantity'] ??
@@ -104,13 +102,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
           final items = (data['items'] as List?) ?? const [];
           final localTotal = _computeLocalTotalQuantity(items);
           print('[CART][FETCH] Local computed total quantity: $localTotal');
-          if (backendTotalItems != null) {
-            print(
-              '[CART][FETCH] Compare -> backend: $backendTotalItems | local: $localTotal',
-            );
-          }
 
-          // Optional debug: subtotal from items (matches UI calc)
           final localSubtotal = items.fold<double>(
             0.0,
             (sum, it) =>
@@ -127,7 +119,6 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
             isLoading = false;
           });
         } else if (data is List) {
-          // Fallback if backend returns a raw list (unlikely but we’ll log)
           print(
             '[CART][FETCH][WARN] Response is a List; expected Map with "items". Using raw list.',
           );
@@ -178,7 +169,8 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
       print('[CART][DELETE] Status: ${deleteResponse.statusCode}');
       print('[CART][DELETE] Body: ${deleteResponse.body}');
 
-      if (deleteResponse.statusCode == 200) {
+      if (deleteResponse.statusCode == 200 ||
+          deleteResponse.statusCode == 204) {
         await fetchCartItems();
         showSnackBar("Item removed from cart");
       } else {
@@ -220,15 +212,61 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     }
   }
 
-  void onQuantityChange(int index, int change) {
+  /// Now asks for confirmation when qty == 1 and user taps '-'.
+  Future<void> onQuantityChange(int index, int change) async {
     final item = cartItems[index];
     final currentQuantity = item['quantity'] ?? 1;
     final newQuantity = currentQuantity + change;
     final itemId = item['id'];
+
     print(
       '[CART][QTY] index=$index current=$currentQuantity change=$change -> new=$newQuantity',
     );
-    updateQuantityInBackend(itemId, newQuantity);
+
+    // If user tries to decrement from 1 -> 0, ask for confirmation first.
+    if (change == -1 && currentQuantity == 1) {
+      final productName = (item['product']?['name'] ?? 'this item').toString();
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder:
+            (ctx) => AlertDialog(
+              title: const Text(
+                'Remove from cart?',
+                style: TextStyle(color: Colors.black),
+              ),
+              content: Text(
+                'Remove "$productName" from your cart?',
+                style: const TextStyle(color: Colors.black),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text(
+                    'Remove',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+              ],
+            ),
+      );
+
+      if (confirm == true) {
+        // Trigger delete path in updateQuantityInBackend
+        await updateQuantityInBackend(itemId, 0);
+      }
+      return;
+    }
+
+    // Regular +/- updates
+    await updateQuantityInBackend(itemId, newQuantity);
   }
 
   void showSnackBar(String message) {
@@ -238,6 +276,39 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  // ---------- Image helpers (use placeholder when URL is missing/invalid or on error) ----------
+  String? _normalizedUrl(dynamic url) {
+    final s = url?.toString().trim();
+    if (s == null || s.isEmpty) return null;
+    if (s.toLowerCase() == 'null') return null;
+    return s;
+  }
+
+  Widget _cartImage(dynamic url) {
+    final s = _normalizedUrl(url);
+    if (s != null && s.startsWith('http')) {
+      return Image.network(
+        s,
+        width: 130,
+        height: 130,
+        fit: BoxFit.cover,
+        errorBuilder:
+            (_, __, ___) => Image.asset(
+              'assets/placeholder.png',
+              width: 130,
+              height: 130,
+              fit: BoxFit.cover,
+            ),
+      );
+    }
+    return Image.asset(
+      'assets/placeholder.png',
+      width: 130,
+      height: 130,
+      fit: BoxFit.cover,
     );
   }
 
@@ -319,7 +390,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                         return _buildCartItem(
                           product['name'] ?? '',
                           '₱ ${product['price'].toString()}',
-                          product['image_url'] ?? '',
+                          product['image_url'], // pass raw URL (can be null)
                           quantity,
                           () => onQuantityChange(index, -1),
                           () => onQuantityChange(index, 1),
@@ -431,7 +502,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
   Widget _buildCartItem(
     String title,
     String price,
-    String imageUrl,
+    dynamic imageUrl,
     int quantity,
     VoidCallback onRemove,
     VoidCallback onAdd,
@@ -441,15 +512,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          child: Image.network(
-            imageUrl,
-            width: 130,
-            height: 130,
-            fit: BoxFit.cover,
-            errorBuilder:
-                (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image, size: 130),
-          ),
+          child: _cartImage(imageUrl),
         ),
         const SizedBox(width: 16),
         Expanded(

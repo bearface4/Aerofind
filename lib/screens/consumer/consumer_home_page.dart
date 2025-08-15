@@ -81,7 +81,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
         final fetchedProducts =
             data.map<Map<String, dynamic>>((item) {
-              // Map out all fields we use, now including store_type
               return {
                 'id': item['id'],
                 'title': item['name'],
@@ -93,18 +92,16 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 'average_rating': item['average_rating'],
                 'rating_count': item['rating_count'],
                 'categories': item['categories'],
-                'store_type': item['store_type'], // store_type included
+                'store_type': item['store_type'],
               };
             }).toList();
 
-        // Log each product's store_type for verification
         for (final p in fetchedProducts) {
           print(
             '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}',
           );
         }
 
-        // Quick summary: unique store types + missing count
         final uniqueStoreTypes = <String>{};
         int missingStoreType = 0;
         for (final p in fetchedProducts) {
@@ -171,12 +168,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
         int totalItems = 0;
         if (decoded is Map<String, dynamic>) {
-          // Prefer backend-provided total_items
           if (decoded.containsKey('total_items')) {
             totalItems = (decoded['total_items'] as num?)?.toInt() ?? 0;
             print('[CARTCOUNT] Using total_items from Map: $totalItems');
           } else {
-            // Fallback: compute from items if available
             final items = (decoded['items'] as List?) ?? const [];
             for (final it in items) {
               final q =
@@ -190,7 +185,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             print('[CARTCOUNT] Computed total from items: $totalItems');
           }
         } else if (decoded is List) {
-          // Extremely unlikely for this endpoint, but handle anyway
           for (final it in decoded) {
             final q =
                 (it is Map && it['quantity'] != null)
@@ -264,15 +258,15 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                   'id': item['id'],
                   'title': item['name'],
                   'price': item['price'],
-                  'image': '', // fallback
+                  'image':
+                      null, // ensure placeholder is used when image is unknown
                   'description': item['description'],
                   'stocks': null,
                   'seller_id': item['seller_id'],
                   'average_rating': null,
                   'rating_count': null,
                   'categories': [],
-                  'store_type':
-                      item['store_type'], // may be null/not provided by search API
+                  'store_type': item['store_type'],
                 },
           );
           matchedProducts.add(match);
@@ -320,7 +314,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             backgroundColor: Colors.green,
           ),
         );
-        // Refresh the cart count after successful add
         await fetchCartCount();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -541,24 +534,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child:
-                            product['image'] != null &&
-                                    product['image'].toString().isNotEmpty
-                                ? Image.network(
-                                  product['image'],
-                                  height: 180,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder:
-                                      (context, error, stackTrace) =>
-                                          const Icon(Icons.broken_image),
-                                )
-                                : Container(
-                                  height: 180,
-                                  width: double.infinity,
-                                  color: Colors.grey[300],
-                                  child: const Icon(Icons.image_not_supported),
-                                ),
+                        child: _productImage(product['image']),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -588,11 +564,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                                 arguments: {
                                   'product_id': product['id'],
                                   'quantity': 1,
-                                  // Optionally include more:
-                                  // 'price': product['price'],
-                                  // 'title': product['title'],
-                                  // 'seller_id': product['seller_id'],
-                                  // 'store_type': product['store_type'],
                                 },
                               );
                             },
@@ -642,8 +613,39 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     );
   }
 
+  /// Returns a product image widget that:
+  /// - Uses Image.network when a non-empty, non-"null" URL is provided.
+  /// - Falls back to assets/placeholder.png when URL is null/empty/"null" or on network error.
+  Widget _productImage(dynamic url) {
+    final String? s = url?.toString();
+    final bool hasUrl =
+        s != null && s.isNotEmpty && s.toLowerCase().trim() != 'null';
+
+    if (hasUrl) {
+      return Image.network(
+        s!,
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder:
+            (context, error, stackTrace) => Image.asset(
+              'assets/placeholder.png',
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+      );
+    }
+
+    return Image.asset(
+      'assets/placeholder.png',
+      height: 180,
+      width: double.infinity,
+      fit: BoxFit.cover,
+    );
+  }
+
   Widget _buildFloatingCartButton() {
-    // Show 99+ if really large counts
     String badge = _cartCount > 99 ? '99+' : '$_cartCount';
 
     return Positioned(
@@ -693,7 +695,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   }
 
   void _showFilterModal() {
-    // Track availability buttons and selected category inside modal
     bool orderNowSelected = false;
     bool preOrderSelected = false;
     String? selectedCategory; // only one category allowed now

@@ -56,7 +56,7 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                   'title': order['product']?['name'] ?? '',
                   'note': order['notes'] ?? '',
                   'price': '₱ ${order['total_amount'] ?? 0}',
-                  'image': order['product']?['image_url'] ?? '',
+                  'image': order['product']?['image_url'],
                   'status': order['status'] ?? '',
                   'isClickable':
                       (order['status']?.toLowerCase() ?? '') == 'ongoing',
@@ -71,6 +71,39 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
     } finally {
       setState(() => isLoading = false);
     }
+  }
+
+  // ---------- Image helpers (use placeholder when URL is missing/invalid or on error) ----------
+  String? _normalizedUrl(dynamic url) {
+    final s = url?.toString().trim();
+    if (s == null || s.isEmpty) return null;
+    if (s.toLowerCase() == 'null') return null;
+    return s;
+  }
+
+  Widget _orderImage(dynamic url) {
+    final s = _normalizedUrl(url);
+    if (s != null && s.startsWith('http')) {
+      return Image.network(
+        s,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        errorBuilder:
+            (_, __, ___) => Image.asset(
+              'assets/placeholder.png',
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+            ),
+      );
+    }
+    return Image.asset(
+      'assets/placeholder.png',
+      width: 100,
+      height: 100,
+      fit: BoxFit.cover,
+    );
   }
 
   @override
@@ -139,8 +172,6 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                                         ),
                                     itemBuilder: (context, index) {
                                       final item = orders[index];
-                                      final bool isOngoing =
-                                          item['status'] == 'Ongoing';
 
                                       final rowContent = Row(
                                         crossAxisAlignment:
@@ -150,20 +181,7 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                                             borderRadius: BorderRadius.circular(
                                               12,
                                             ),
-                                            child:
-                                                item['image'].startsWith("http")
-                                                    ? Image.network(
-                                                      item['image'],
-                                                      width: 100,
-                                                      height: 100,
-                                                      fit: BoxFit.cover,
-                                                    )
-                                                    : Image.asset(
-                                                      'assets/placeholder.jpg',
-                                                      width: 100,
-                                                      height: 100,
-                                                      fit: BoxFit.cover,
-                                                    ),
+                                            child: _orderImage(item['image']),
                                           ),
                                           const SizedBox(width: 12),
                                           Expanded(
@@ -260,7 +278,7 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                                         ],
                                       );
 
-                                      return item['isClickable']
+                                      return item['isClickable'] == true
                                           ? GestureDetector(
                                             onTap: () {
                                               Navigator.pushNamed(

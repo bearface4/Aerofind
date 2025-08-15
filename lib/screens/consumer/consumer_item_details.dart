@@ -342,15 +342,10 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               ),
               const SizedBox(height: 20),
 
-              // Product Image
+              // Product Image (with placeholder fallback)
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  productData!['image_url'],
-                  width: double.infinity,
-                  height: 300,
-                  fit: BoxFit.cover,
-                ),
+                child: _productImage(productData!['image_url']),
               ),
               const SizedBox(height: 24),
 
@@ -545,6 +540,37 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Returns image with graceful fallback to assets/placeholder.png
+  /// when URL is null/empty/"null" or if the network image fails.
+  Widget _productImage(dynamic url) {
+    final String? s = url?.toString();
+    final bool hasUrl =
+        s != null && s.isNotEmpty && s.toLowerCase().trim() != 'null';
+
+    if (hasUrl) {
+      return Image.network(
+        s!,
+        width: double.infinity,
+        height: 300,
+        fit: BoxFit.cover,
+        errorBuilder:
+            (context, error, stackTrace) => Image.asset(
+              'assets/placeholder.png',
+              width: double.infinity,
+              height: 300,
+              fit: BoxFit.cover,
+            ),
+      );
+    }
+
+    return Image.asset(
+      'assets/placeholder.png',
+      width: double.infinity,
+      height: 300,
+      fit: BoxFit.cover,
     );
   }
 
