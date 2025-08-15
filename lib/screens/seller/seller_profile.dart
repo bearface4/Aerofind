@@ -21,16 +21,19 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
   final TextEditingController storeNameController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
+  final TextEditingController deliveryFeeController = TextEditingController();
+
   String storeType = 'Snacks';
   String profileImage = 'assets/placeholder.png';
   String bannerImage = 'assets/placeholder.png';
 
-  // Store original values to compare for changes
+  // Original values for change detection
   String originalStoreName = '';
   String originalAddress = '';
   String originalStoreType = '';
+  String originalDeliveryFee = '';
 
-  final List<String> storeTypes = [
+  final List<String> storeTypes = const [
     "Snacks",
     "Beverage",
     "Printing",
@@ -48,6 +51,21 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
     fetchProfile();
   }
 
+  @override
+  void dispose() {
+    storeNameController.dispose();
+    addressController.dispose();
+    emailController.dispose();
+    deliveryFeeController.dispose();
+    super.dispose();
+  }
+
+  bool _isNetworkUrl(String? s) {
+    if (s == null) return false;
+    final v = s.trim().toLowerCase();
+    return v.startsWith('http://') || v.startsWith('https://');
+  }
+
   Future<void> fetchProfile() async {
     setState(() => isLoading = true);
     try {
@@ -62,43 +80,89 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        // delivery_fee can be int/double/string — normalize to string
+        final feeVal = data['delivery_fee'];
+        String normalizedFee;
+        if (feeVal == null) {
+          normalizedFee = '0';
+        } else if (feeVal is num) {
+          normalizedFee = feeVal.toString();
+        } else {
+          normalizedFee = feeVal.toString();
+        }
+
         setState(() {
-          storeNameController.text = data['store_name'] ?? '';
-          addressController.text = data['address'] ?? '';
-          emailController.text = data['email'] ?? '';
+          storeNameController.text = data['store_name']?.toString() ?? '';
+          addressController.text = data['address']?.toString() ?? '';
+          emailController.text = data['email']?.toString() ?? '';
+          deliveryFeeController.text = normalizedFee;
+
+          final apiStoreType = data['store_type']?.toString();
           storeType =
-              storeTypes.contains(data['store_type'])
-                  ? data['store_type']
-                  : 'Snacks';
+              storeTypes.contains(apiStoreType) ? apiStoreType! : 'Snacks';
+
           profileImage =
-              data['profile_image_url']?.isNotEmpty == true
-                  ? data['profile_image_url']
+              (data['profile_image_url']?.toString().isNotEmpty ?? false)
+                  ? data['profile_image_url'].toString()
                   : 'assets/placeholder.png';
           bannerImage =
-              data['banner_image_url']?.isNotEmpty == true
-                  ? data['banner_image_url']
+              (data['banner_image_url']?.toString().isNotEmpty ?? false)
+                  ? data['banner_image_url'].toString()
                   : 'assets/placeholder.png';
 
-          // Store original values for change detection
+          // Save originals
           originalStoreName = storeNameController.text;
           originalAddress = addressController.text;
           originalStoreType = storeType;
+          originalDeliveryFee = deliveryFeeController.text;
         });
+      } else if (response.statusCode == 401) {
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.login,
+          (route) => false,
+        );
       } else {
-        debugPrint('Failed to fetch profile: ${response.statusCode}');
+        debugPrint(
+          'Failed to fetch profile: ${response.statusCode} ${response.body}',
+        );
       }
     } catch (e) {
       debugPrint('Error fetching profile: $e');
     }
 
-    setState(() => isLoading = false);
+    if (mounted) setState(() => isLoading = false);
+  }
+
+  bool _sameFee(String a, String b) {
+    final da = double.tryParse(a.replaceAll(',', '')) ?? 0.0;
+    final db = double.tryParse(b.replaceAll(',', '')) ?? 0.0;
+    return (da - db).abs() < 0.01;
   }
 
   Future<void> updateProfile() async {
-    // Check if there are any changes
-    if (storeNameController.text == originalStoreName &&
+    // Validate fee
+    final feeStr = deliveryFeeController.text.trim();
+    final parsedFee = double.tryParse(feeStr.replaceAll(',', ''));
+    if (parsedFee == null || parsedFee < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid delivery fee.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Check for changes
+    final noChanges =
+        storeNameController.text == originalStoreName &&
         addressController.text == originalAddress &&
-        storeType == originalStoreType) {
+        storeType == originalStoreType &&
+        _sameFee(feeStr, originalDeliveryFee);
+
+    if (noChanges) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No changes to save.'),
@@ -122,12 +186,10 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
         "store_type": storeType,
         "store_info": "placeholder info",
         "address": addressController.text,
-        "delivery_fee": 0,
+        "delivery_fee": parsedFee, // send fee from controller
         "latitude": 0,
         "longitude": 0,
       };
-
-      debugPrint('Updating profile with: $body');
 
       final response = await http.put(
         Uri.parse('https://aerofind-api.onrender.com/seller/profile'),
@@ -139,6 +201,7 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       );
 
       if (response.statusCode == 200) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile updated successfully'),
@@ -146,11 +209,19 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
           ),
         );
         setState(() => isEditing = false);
-        fetchProfile(); // Refresh data
+        await fetchProfile(); // refresh and reset originals
+      } else if (response.statusCode == 401) {
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.login,
+          (route) => false,
+        );
       } else {
         debugPrint(
           'Failed to update profile: ${response.statusCode} ${response.body}',
         );
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to update profile'),
@@ -160,14 +231,22 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       }
     } catch (e) {
       debugPrint('Error updating profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('An error occurred while updating profile'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
 
-    setState(() => isSaving = false);
+    if (mounted) setState(() => isSaving = false);
   }
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token'); // Dispose token
+    await prefs.remove('access_token');
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
@@ -178,6 +257,33 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final bannerWidget =
+        _isNetworkUrl(bannerImage)
+            ? Image.network(
+              bannerImage,
+              width: double.infinity,
+              height: 200,
+              fit: BoxFit.cover,
+              errorBuilder:
+                  (_, __, ___) => Image.asset(
+                    'assets/placeholder.png',
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+            )
+            : Image.asset(
+              bannerImage,
+              width: double.infinity,
+              height: 200,
+              fit: BoxFit.cover,
+            );
+
+    final ImageProvider avatarProvider =
+        _isNetworkUrl(profileImage)
+            ? NetworkImage(profileImage)
+            : AssetImage(profileImage) as ImageProvider;
+
     return Scaffold(
       backgroundColor: const Color(0xfff8f8f8),
       body: RefreshIndicator(
@@ -191,17 +297,12 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
-                  Image.asset(
-                    bannerImage,
-                    width: double.infinity,
-                    height: 200,
-                    fit: BoxFit.cover,
-                  ),
+                  bannerWidget,
                   Positioned(
                     bottom: -50,
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundImage: AssetImage(profileImage),
+                      backgroundImage: avatarProvider,
                     ),
                   ),
                 ],
@@ -276,7 +377,13 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
               ),
               const SizedBox(height: 10),
 
-              if (isEditing)
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: CircularProgressIndicator(),
+                )
+              else if (isEditing)
+                // EDIT MODE: show editable fields including Delivery Fee
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -287,11 +394,16 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                       _buildTextField('Store Name', storeNameController),
                       _buildDropdown(),
                       _buildTextField('Address', addressController),
+                      _buildNumberField(
+                        'Delivery Fee (₱)',
+                        deliveryFeeController,
+                      ),
                       _buildReadOnlyField('Email Address', emailController),
                     ],
                   ),
                 )
               else
+                // VIEW MODE: DO NOT show Delivery Fee here
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -346,6 +458,36 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: const Color(0xff002366), width: 2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildNumberField(String label, TextEditingController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+          ],
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
             focusedBorder: OutlineInputBorder(
