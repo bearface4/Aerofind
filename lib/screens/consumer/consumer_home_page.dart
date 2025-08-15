@@ -433,7 +433,21 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              // Navigate directly to checkout with this product
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.consumercheckout,
+                                arguments: {
+                                  'product_id': product['id'],
+                                  'quantity': 1,
+                                  // You can include more if your checkout expects it:
+                                  // 'price': product['price'],
+                                  // 'title': product['title'],
+                                  // 'seller_id': product['seller_id'],
+                                },
+                              );
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF002363),
                               shape: RoundedRectangleBorder(
