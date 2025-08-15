@@ -18,7 +18,9 @@ dependencies:
   location: ^8.0.1
   http: ^1.4.0
   shared_preferences: ^2.5.3
-   
+  image_picker: ^1.1.2
+  http_parser: ^4.0.2
+  image: ^4.1.7   
 
 dev_dependencies:
   flutter_test:
