@@ -53,6 +53,7 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
           orders =
               data.map<Map<String, dynamic>>((order) {
                 return {
+                  'id': order['id'], // Add the product ID here
                   'title': order['product']?['name'] ?? '',
                   'note': order['notes'] ?? '',
                   'price': '₱ ${order['total_amount'] ?? 0}',
@@ -278,17 +279,18 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                                         ],
                                       );
 
-                                      return item['isClickable'] == true
-                                          ? GestureDetector(
-                                            onTap: () {
-                                              Navigator.pushNamed(
-                                                context,
-                                                AppRoutes.consumertrackview,
-                                              );
-                                            },
-                                            child: rowContent,
-                                          )
-                                          : rowContent;
+                                      return GestureDetector(
+                                        onTap: () {
+                                          // Pass the order's product ID to the next route
+                                          Navigator.pushNamed(
+                                            context,
+                                            AppRoutes.consumertrackview,
+                                            arguments:
+                                                item['id'], // Passing only the orderId
+                                          );
+                                        },
+                                        child: rowContent,
+                                      );
                                     },
                                   ),
                         ),
