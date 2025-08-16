@@ -22,13 +22,17 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
   bool _isSaving = false;
   bool _isLoading = true; // fetching product details
 
-  // Image preview
   String? _imageUrl; // network URL (preferred)
   String? _assetPreviewPath; // asset/placeholder
 
-  // Product identity
   int? _productId;
   bool _didInitFromArgs = false;
+
+  // Track initial values
+  String? _initialProductName;
+  String? _initialDescription;
+  int? _initialStocks;
+  num? _initialPrice;
 
   @override
   void initState() {
@@ -50,7 +54,6 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
     } else if (args is String) {
       id = int.tryParse(args);
     } else if (args is Map && args['id'] != null) {
-      // graceful fallback if you accidentally pass a map with id
       id = _toInt(args['id']);
     }
 
@@ -120,7 +123,6 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
 
     setState(() => _isLoading = true);
 
-    // Ensure token available
     if (_token == null || _token!.isEmpty) {
       await _loadToken();
     }
@@ -141,9 +143,6 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
     final endpoint =
         'https://aerofind-api.onrender.com/seller/products/$_productId';
     debugPrint('[UPD][GET] $endpoint');
-    debugPrint(
-      '[UPD][GET] Headers: {Authorization: Bearer ***, Content-Type: application/json}',
-    );
 
     final sw = Stopwatch()..start();
 
@@ -194,6 +193,12 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
           }
         }
 
+        // Track initial values
+        _initialProductName = _productNameController.text;
+        _initialDescription = _descriptionController.text;
+        _initialStocks = _toInt(m['stocks']);
+        _initialPrice = _toNum(m['price']);
+
         debugPrint(
           '[UPD] Prefilled from GET => id=$_productId '
           'name="${_productNameController.text}", price="${_priceController.text}", '
@@ -229,6 +234,19 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ===== Check for Changes =====
+  bool _hasChanges() {
+    final currentName = _productNameController.text.trim();
+    final currentDescription = _descriptionController.text.trim();
+    final currentStocks = _toInt(_stockController.text);
+    final currentPrice = _toNum(_priceController.text);
+
+    return currentName != _initialProductName ||
+        currentDescription != _initialDescription ||
+        currentStocks != _initialStocks ||
+        currentPrice != _initialPrice;
   }
 
   // ===== Update handler =====
@@ -284,12 +302,23 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
       return;
     }
 
+    // Don't trigger API call if no changes are made
+    if (!_hasChanges()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No changes to save.'),
+          backgroundColor: Colors.grey,
+        ),
+      );
+      return;
+    }
+
     final payload = {
       'name': name,
       'price': price,
       'description': description,
       'stocks': stocks,
-      'category_ids': <int>[], // parity with create
+      'category_ids': <int>[],
     };
 
     final endpoint =
