@@ -6,20 +6,24 @@ import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerHomePage extends StatefulWidget {
   const ConsumerHomePage({super.key});
-
   @override
   State<ConsumerHomePage> createState() => _ConsumerHomePageState();
 }
 
 class _ConsumerHomePageState extends State<ConsumerHomePage> {
-  RangeValues _currentRange = const RangeValues(0, 5000);
+  // Client-side price cap (max only)
+  RangeValues _currentRange = const RangeValues(0, 60000);
+
   bool _isLoading = true;
   List<Map<String, dynamic>> products = [];
-  List<Map<String, dynamic>> allProducts = []; // store all fetched products
+  List<Map<String, dynamic>> allProducts =
+      []; // store last fetched products (for potential reuse)
   String? _token;
-  int _cartCount = 0; // cart badge count
-
+  int _cartCount = 0;
   final TextEditingController _searchController = TextEditingController();
+
+  // Track selected category title exactly as shown in UI (e.g., "Printing")
+  String? _selectedCategoryTitle;
 
   final List<Map<String, String>> categories = const [
     {'title': 'Snacks', 'image': 'assets/snack.png'},
@@ -40,46 +44,46 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   }
 
   Future<void> _loadTokenAndFetch() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('access_token');
-
     if (storedToken == null || storedToken.isEmpty) {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
       return;
     }
-
-    setState(() {
-      _token = storedToken;
-    });
-
-    await fetchProducts();
-    await fetchCartCount(); // load cart count on start
+    setState(() => _token = storedToken);
+    await fetchProducts(); // initial load (no store_type)
+    await fetchCartCount();
   }
 
-  Future<void> fetchProducts() async {
-    const url = 'https://aerofind-api.onrender.com/customer/products';
+  Uri _productsUri({String? storeType}) {
+    const base = 'https://aerofind-api.onrender.com/customer/products';
+    if (storeType == null || storeType.trim().isEmpty) {
+      return Uri.parse(base);
+    }
+    final enc = Uri.encodeQueryComponent(storeType);
+    return Uri.parse('$base?store_type=$enc');
+  }
 
+  Future<void> fetchProducts({String? storeType}) async {
     if (_token == null) return;
-
+    final uri = _productsUri(storeType: storeType);
     try {
-      print('[PRODUCTS] GET $url');
+      print('[PRODUCTS] GET $uri');
       print(
         '[PRODUCTS] Headers: {Authorization: Bearer ***, Content-Type: application/json}',
       );
       final response = await http.get(
-        Uri.parse(url),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
         },
       );
-
       print('[PRODUCTS] Status Code: ${response.statusCode}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         print('[PRODUCTS] Received ${data.length} items');
-
-        final fetchedProducts =
+        final fetched =
             data.map<Map<String, dynamic>>((item) {
               return {
                 'id': item['id'],
@@ -95,57 +99,43 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 'store_type': item['store_type'],
               };
             }).toList();
-
-        for (final p in fetchedProducts) {
+        // Debug
+        for (final p in fetched) {
           print(
             '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}',
           );
         }
 
-        final uniqueStoreTypes = <String>{};
-        int missingStoreType = 0;
-        for (final p in fetchedProducts) {
-          final st = p['store_type'];
-          if (st == null || (st is String && st.trim().isEmpty)) {
-            missingStoreType++;
-          } else {
-            uniqueStoreTypes.add(st.toString());
-          }
-        }
-        print(
-          '[PRODUCTS] Unique store_type values: ${uniqueStoreTypes.toList()}',
-        );
-        print('[PRODUCTS] Items missing store_type: $missingStoreType');
+        // Apply current max price cap client-side
+        final capped =
+            fetched.where((p) {
+              final price = p['price'];
+              return price is num ? price <= _currentRange.end : false;
+            }).toList();
 
         setState(() {
-          allProducts = List.from(fetchedProducts);
-          products = List.from(fetchedProducts);
+          allProducts = List.from(fetched);
+          products = capped;
           _isLoading = false;
         });
       } else if (response.statusCode == 401) {
-        print('[PRODUCTS][ERROR] Unauthorized (401). Redirecting to login.');
+        print('[PRODUCTS][ERROR] 401 Unauthorized; redirecting to login');
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       } else {
         print('[PRODUCTS][ERROR] Unexpected status ${response.statusCode}');
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('[PRODUCTS][ERROR] Exception while fetching products: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      print('[PRODUCTS][ERROR] Exception: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-  // Fetch total cart items for the badge — USE /customer/cart (returns total_items)
   Future<void> fetchCartCount() async {
     if (_token == null || _token!.isEmpty) {
       print('[CARTCOUNT][WARN] No token; skipping count fetch.');
       return;
     }
-
     const url = 'https://aerofind-api.onrender.com/customer/cart';
     print('[CARTCOUNT] GET $url');
     print(
@@ -159,18 +149,14 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           'Content-Type': 'application/json',
         },
       );
-
       print('[CARTCOUNT] Status: ${resp.statusCode}');
       print('[CARTCOUNT] Body: ${resp.body}');
-
       if (resp.statusCode == 200) {
         final decoded = json.decode(resp.body);
-
         int totalItems = 0;
         if (decoded is Map<String, dynamic>) {
           if (decoded.containsKey('total_items')) {
             totalItems = (decoded['total_items'] as num?)?.toInt() ?? 0;
-            print('[CARTCOUNT] Using total_items from Map: $totalItems');
           } else {
             final items = (decoded['items'] as List?) ?? const [];
             for (final it in items) {
@@ -182,7 +168,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       : 1;
               totalItems += q;
             }
-            print('[CARTCOUNT] Computed total from items: $totalItems');
           }
         } else if (decoded is List) {
           for (final it in decoded) {
@@ -194,18 +179,14 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                     : 1;
             totalItems += q;
           }
-          print('[CARTCOUNT] Computed total from List: $totalItems');
         } else {
           print(
             '[CARTCOUNT][WARN] Unexpected response type: ${decoded.runtimeType}',
           );
         }
-
-        setState(() {
-          _cartCount = totalItems;
-        });
+        setState(() => _cartCount = totalItems);
       } else if (resp.statusCode == 401) {
-        print('[CARTCOUNT][ERROR] 401 Unauthorized — cannot fetch cart count.');
+        print('[CARTCOUNT][ERROR] 401 Unauthorized');
       } else {
         print('[CARTCOUNT][ERROR] Unexpected status ${resp.statusCode}');
       }
@@ -214,23 +195,18 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     }
   }
 
+  // Efficient search handling:
+  // - Always use server search.
+  // - Build full product maps using search response fields when not found in current list, so images display.
+  // - Preserve current category context visually; clearing search restores category view.
   Future<void> searchProducts(String query) async {
     const url = 'https://aerofind-api.onrender.com/search/search';
-
     if (_token == null || query.trim().isEmpty) {
       print('[SEARCH] Token missing or query empty.');
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    print('[SEARCH] Starting search for: "$query"');
-    print(
-      '[SEARCH] Sending POST to $url with body: ${jsonEncode({'query': query.trim(), 'limit': 10})}',
-    );
-
+    setState(() => _isLoading = true);
+    print('[SEARCH] POST $url query="$query"');
     try {
       final response = await http.post(
         Uri.parse(url),
@@ -238,43 +214,64 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_token',
         },
-        body: jsonEncode({'query': query.trim(), 'limit': 10}),
+        body: jsonEncode({'query': query.trim(), 'limit': 20}),
       );
-
       print('[SEARCH] Status Code: ${response.statusCode}');
-      print('[SEARCH] Response Body: ${response.body}');
-
+      print('[SEARCH] Body: ${response.body}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        // Build results. Try to reuse current product entries for consistent formatting.
+        final List<Map<String, dynamic>> results = [];
+        for (final item in data) {
+          final int id = (item['id'] as num).toInt();
 
-        final List<Map<String, dynamic>> matchedProducts = [];
-
-        for (var item in data) {
-          final int id = item['id'];
-          final match = products.firstWhere(
-            (product) => product['id'] == id,
-            orElse:
-                () => {
-                  'id': item['id'],
-                  'title': item['name'],
-                  'price': item['price'],
-                  'image':
-                      null, // ensure placeholder is used when image is unknown
-                  'description': item['description'],
-                  'stocks': null,
-                  'seller_id': item['seller_id'],
-                  'average_rating': null,
-                  'rating_count': null,
-                  'categories': [],
-                  'store_type': item['store_type'],
-                },
+          // First try from current products (already price-capped and filtered)
+          final existing = products.cast<Map<String, dynamic>?>().firstWhere(
+            (p) => p?['id'] == id,
+            orElse: () => null,
           );
-          matchedProducts.add(match);
+
+          if (existing != null) {
+            results.add(existing);
+            continue;
+          }
+
+          // Else try from allProducts (last fetch set)
+          final fromAll = allProducts.cast<Map<String, dynamic>?>().firstWhere(
+            (p) => p?['id'] == id,
+            orElse: () => null,
+          );
+          if (fromAll != null) {
+            results.add(fromAll);
+            continue;
+          }
+
+          // Else build from search item fields (use image_url if present)
+          results.add({
+            'id': id,
+            'title': item['name'],
+            'price': item['price'],
+            'image':
+                item['image_url'], // important: use image_url to avoid placeholders
+            'description': item['description'],
+            'stocks': item['stocks'],
+            'seller_id': item['seller_id'],
+            'average_rating': item['average_rating'],
+            'rating_count': item['rating_count'],
+            'categories': item['categories'] ?? [],
+            'store_type': item['store_type'],
+          });
         }
 
-        print('[SEARCH] Matched ${matchedProducts.length} products.');
+        // Apply current max price cap client-side to search results as well
+        final capped =
+            results.where((p) {
+              final price = p['price'];
+              return price is num ? price <= _currentRange.end : false;
+            }).toList();
+
         setState(() {
-          products = matchedProducts;
+          products = capped;
           _isLoading = false;
         });
       } else {
@@ -282,7 +279,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('[SEARCH] Error during search: $e');
+      print('[SEARCH][ERROR] Exception: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -292,7 +289,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
       return;
     }
-
     const url = 'https://aerofind-api.onrender.com/customer/cart/items';
     try {
       print('[CART] POST $url');
@@ -304,7 +300,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         },
         body: jsonEncode({"product_id": productId, "quantity": 1}),
       );
-
       print('[CART] Status Code: ${response.statusCode}');
       print('[CART] Response Body: ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -344,8 +339,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
               onRefresh: () async {
-                await fetchProducts();
-                await fetchCartCount(); // also refresh badge on pull
+                await fetchProducts(storeType: _selectedCategoryTitle);
+                await fetchCartCount();
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -361,8 +356,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 ),
               ),
             ),
-
-        // Centered "Product not found." overlay when there are zero results
         if (!_isLoading && products.isEmpty)
           IgnorePointer(
             child: Center(
@@ -370,13 +363,12 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 'Product not found.',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey[700],
+                  color: Colors.grey,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ),
-
         _buildFloatingCartButton(),
       ],
     );
@@ -417,11 +409,12 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           Expanded(
             child: TextField(
               controller: _searchController,
-              onChanged: (value) {
+              onChanged: (value) async {
                 if (value.trim().isEmpty) {
+                  // When clearing search, restore current category view
                   setState(() => _isLoading = true);
-                  fetchProducts();
-                  fetchCartCount(); // keep badge fresh after clearing search
+                  await fetchProducts(storeType: _selectedCategoryTitle);
+                  await fetchCartCount();
                 }
               },
               onSubmitted: (value) => searchProducts(value),
@@ -471,33 +464,70 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             child: Row(
               children:
                   categories.map((cat) {
+                    final title = cat['title']!;
+                    final isSelected = _selectedCategoryTitle == title;
                     return Padding(
                       padding: const EdgeInsets.only(right: 16),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF002363),
-                              shape: BoxShape.circle,
-                            ),
-                            child: ClipOval(
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Image.asset(
-                                  cat['image']!,
-                                  fit: BoxFit.contain,
+                      child: GestureDetector(
+                        onTap: () async {
+                          final newSelection = isSelected ? null : title;
+                          setState(() {
+                            _selectedCategoryTitle = newSelection;
+                            _isLoading = true;
+                          });
+                          await fetchProducts(storeType: newSelection);
+                        },
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color:
+                                    isSelected
+                                        ? const Color(0xFF001a4a)
+                                        : const Color(0xFF002363),
+                                shape: BoxShape.circle,
+                                boxShadow:
+                                    isSelected
+                                        ? [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.15,
+                                            ),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ]
+                                        : null,
+                              ),
+                              child: ClipOval(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Image.asset(
+                                    cat['image']!,
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            cat['title']!,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ],
+                            const SizedBox(height: 5),
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
+                                color:
+                                    isSelected
+                                        ? const Color(0xFF002363)
+                                        : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }).toList(),
@@ -511,7 +541,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   Widget _buildProductGrid(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = (screenWidth - 48) / 2;
-
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Wrap(
@@ -557,7 +586,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              // Navigate directly to checkout with this product
                               Navigator.pushNamed(
                                 context,
                                 AppRoutes.consumercheckout,
@@ -613,14 +641,12 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     );
   }
 
-  /// Returns a product image widget that:
   /// - Uses Image.network when a non-empty, non-"null" URL is provided.
   /// - Falls back to assets/placeholder.png when URL is null/empty/"null" or on network error.
   Widget _productImage(dynamic url) {
     final String? s = url?.toString();
     final bool hasUrl =
         s != null && s.isNotEmpty && s.toLowerCase().trim() != 'null';
-
     if (hasUrl) {
       return Image.network(
         s!,
@@ -636,7 +662,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             ),
       );
     }
-
     return Image.asset(
       'assets/placeholder.png',
       height: 180,
@@ -647,7 +672,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
   Widget _buildFloatingCartButton() {
     String badge = _cartCount > 99 ? '99+' : '$_cartCount';
-
     return Positioned(
       bottom: 60,
       right: 16,
@@ -697,9 +721,8 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   void _showFilterModal() {
     bool orderNowSelected = false;
     bool preOrderSelected = false;
-    String? selectedCategory; // only one category allowed now
-    double currentMaxPrice = _currentRange.end;
-
+    String? selectedCategory = _selectedCategoryTitle; // prefill current
+    double currentMaxPrice = _currentRange.end; // prefill current
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -718,17 +741,43 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(right: 280),
-                      child: Text(
-                        'Filter',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                    // Header with Reset button
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Filter',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
+                        TextButton(
+                          onPressed: () async {
+                            // Reset local modal selections
+                            setModalState(() {
+                              selectedCategory = null;
+                              currentMaxPrice = 60000; // default show-all
+                              orderNowSelected = false;
+                              preOrderSelected = false;
+                            });
+                            // Reset page-level filters
+                            setState(() {
+                              _selectedCategoryTitle = null;
+                              _currentRange = const RangeValues(0, 60000);
+                              _isLoading = true;
+                            });
+                            // Refetch all products without store_type filter
+                            await fetchProducts(storeType: null);
+                            if (mounted) Navigator.pop(context);
+                          },
+                          child: const Text('Reset'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
+
+                    const SizedBox(height: 12),
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -754,13 +803,14 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                                 });
                               },
                               selectedColor: const Color(0xFF002363),
-                              backgroundColor: Colors.grey[300],
+                              backgroundColor: Colors.grey,
                               labelStyle: TextStyle(
                                 color: isSelected ? Colors.white : Colors.black,
                               ),
                             );
                           }).toList(),
                     ),
+
                     const SizedBox(height: 20),
                     const Align(
                       alignment: Alignment.centerLeft,
@@ -784,7 +834,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                               backgroundColor:
                                   orderNowSelected
                                       ? const Color(0xFF002363)
-                                      : Colors.grey[300],
+                                      : Colors.grey,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -814,7 +864,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                               backgroundColor:
                                   preOrderSelected
                                       ? const Color(0xFF002363)
-                                      : Colors.grey[300],
+                                      : Colors.grey,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -833,6 +883,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 20),
                     const Align(
                       alignment: Alignment.centerLeft,
@@ -854,7 +905,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                             divisions: 600,
                             label: '₱${currentMaxPrice.toInt()}',
                             activeColor: const Color(0xFF002363),
-                            inactiveColor: Colors.grey[300],
+                            inactiveColor: Colors.grey,
                             onChanged: (value) {
                               setModalState(() {
                                 currentMaxPrice = value;
@@ -866,33 +917,22 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         const Text("₱60,000", style: TextStyle(fontSize: 14)),
                       ],
                     ),
+
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          // Commit selection and price range
                           setState(() {
+                            _selectedCategoryTitle = selectedCategory;
                             _currentRange = RangeValues(0, currentMaxPrice);
-                            products =
-                                allProducts.where((product) {
-                                  final inCategory =
-                                      selectedCategory == null ||
-                                      (product['categories'] != null &&
-                                          (product['categories'] as List)
-                                              .map(
-                                                (c) =>
-                                                    c.toString().toLowerCase(),
-                                              )
-                                              .contains(
-                                                selectedCategory!.toLowerCase(),
-                                              ));
-                                  final inPrice =
-                                      (product['price'] is num) &&
-                                      product['price'] <= currentMaxPrice;
-                                  return inCategory && inPrice;
-                                }).toList();
+                            _isLoading = true;
                           });
-                          Navigator.pop(context);
+                          await fetchProducts(
+                            storeType: _selectedCategoryTitle,
+                          );
+                          if (mounted) Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF002363),
