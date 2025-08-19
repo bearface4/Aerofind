@@ -18,10 +18,17 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
   Map<String, dynamic>? productData;
   bool isLoading = true;
   int? productId;
+
   String? _token;
 
+  // Favorite state
   bool isFavorite = false;
-  int? favoriteId; // ✅ Store favorite_id for DELETE
+  int? favoriteId; // Store favorite_id for DELETE
+
+  // Profile fields
+  int? _customerId;
+  String? _customerEmail;
+  String? _customerName; // Concatenated from profile
 
   @override
   void didChangeDependencies() {
@@ -37,8 +44,12 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     setState(() {
       _token = prefs.getString('access_token');
     });
+    // Fetch product first (open endpoint)
     await fetchProductDetails(id);
+    // Then fetch favorites (requires token)
     await fetchFavoriteStatus(id);
+    // Fetch profile for reports
+    await fetchCustomerProfile();
   }
 
   Future<void> fetchProductDetails(int id) async {
@@ -46,7 +57,6 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
       'https://aerofind-api.onrender.com/customer/products/$id',
     );
     final response = await http.get(url);
-
     if (response.statusCode == 200) {
       setState(() {
         productData = json.decode(response.body);
@@ -57,27 +67,23 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     }
   }
 
-  /// ✅ Fetch the list of favorites and check if this product is included
+  /// Fetch the list of favorites and check if this product is included
   Future<void> fetchFavoriteStatus(int id) async {
     if (_token == null) return;
-
     final url = Uri.parse(
       'https://aerofind-api.onrender.com/customer/favorites',
     );
-
     try {
       final response = await http.get(
         url,
         headers: {'Authorization': 'Bearer $_token'},
       );
-
       if (response.statusCode == 200) {
         final List<dynamic> favorites = json.decode(response.body);
         final fav = favorites.firstWhere(
           (f) => f['product_id'] == id,
           orElse: () => null,
         );
-
         setState(() {
           isFavorite = fav != null;
           favoriteId = fav != null ? fav['id'] : null;
@@ -86,17 +92,59 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
     } catch (e) {
-      print("❌ Failed to fetch favorite status: $e");
+      // You can log or handle silently
+      // print("❌ Failed to fetch favorite status: $e");
+    }
+  }
+
+  /// Fetch customer profile to populate report fields
+  Future<void> fetchCustomerProfile() async {
+    if (_token == null) return;
+    final url = Uri.parse('https://aerofind-api.onrender.com/customer/profile');
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $_token'},
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> profile = json.decode(response.body);
+        final int? id = profile['id'];
+        final String? firstName = profile['first_name'];
+        final String? lastName = profile['last_name'];
+        final String? middleName = profile['middle_name'];
+        final String? suffix = profile['suffix'];
+        // Email may be present in profile or not; attempt to read
+        final String? email = profile['email'] ?? profile['customer_email'];
+
+        final List<String> nameParts = [
+          if (firstName != null && firstName.trim().isNotEmpty)
+            firstName.trim(),
+          if (middleName != null && middleName.trim().isNotEmpty)
+            middleName.trim(),
+          if (lastName != null && lastName.trim().isNotEmpty) lastName.trim(),
+          if (suffix != null && suffix.trim().isNotEmpty) suffix.trim(),
+        ];
+        final String combinedName =
+            nameParts.isEmpty ? '' : nameParts.join(' ');
+
+        setState(() {
+          _customerId = id;
+          _customerEmail = email;
+          _customerName = combinedName.isNotEmpty ? combinedName : null;
+        });
+      } else if (response.statusCode == 401) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      }
+    } catch (e) {
+      // Handle silently; reporting will still work with nulls if API allows
     }
   }
 
   Future<void> addToCart() async {
     if (_token == null || productData == null) return;
-
     final url = Uri.parse(
       'https://aerofind-api.onrender.com/customer/cart/items',
     );
-
     final response = await http.post(
       url,
       headers: {
@@ -109,14 +157,12 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
         'note': noteController.text,
       }),
     );
-
     if (response.statusCode == 200 || response.statusCode == 201) {
       final itemName = productData!['name'] ?? 'Item';
       final message =
           quantity > 1
               ? '$quantity $itemName added to cart.'
               : '$itemName added to cart';
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.green),
       );
@@ -132,14 +178,12 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     }
   }
 
-  /// ✅ Add favorite
+  /// Add favorite
   Future<void> addFavorite() async {
     if (_token == null || productData == null) return;
-
     final url = Uri.parse(
       'https://aerofind-api.onrender.com/customer/favorites',
     );
-
     try {
       final response = await http.post(
         url,
@@ -149,7 +193,6 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
         },
         body: json.encode({'product_id': productId}),
       );
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         await fetchFavoriteStatus(productId!);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -178,20 +221,17 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     }
   }
 
-  /// ✅ Remove favorite
+  /// Remove favorite
   Future<void> removeFavorite() async {
     if (_token == null || favoriteId == null) return;
-
     final url = Uri.parse(
       'https://aerofind-api.onrender.com/customer/favorites/$favoriteId',
     );
-
     try {
       final response = await http.delete(
         url,
         headers: {'Authorization': 'Bearer $_token'},
       );
-
       if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
           isFavorite = false;
@@ -223,7 +263,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     }
   }
 
-  /// ✅ Toggle favorite with dialog confirmation for removal
+  /// Toggle favorite with dialog confirmation for removal
   Future<void> toggleFavorite() async {
     if (!isFavorite) {
       await addFavorite();
@@ -240,7 +280,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               actions: [
                 TextButton(
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.black, // ✅ Text color black
+                    foregroundColor: Colors.black, // Text color black
                   ),
                   onPressed: () => Navigator.pop(context, false),
                   child: const Text('Cancel'),
@@ -248,7 +288,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    foregroundColor: Colors.black, // ✅ Text color black
+                    foregroundColor: Colors.black, // Text color black
                   ),
                   onPressed: () => Navigator.pop(context, true),
                   child: const Text('Remove'),
@@ -386,8 +426,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                     ),
                   ),
                   const SizedBox(width: 8),
-
-                  /// ✅ Favorite button
+                  // Favorite button
                   GestureDetector(
                     onTap: toggleFavorite,
                     child: Icon(
@@ -432,6 +471,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                 style: const TextStyle(fontSize: 14.5, color: Colors.grey),
               ),
               const SizedBox(height: 16),
+
               const Divider(thickness: 1, color: Colors.grey),
               const SizedBox(height: 20),
 
@@ -549,7 +589,6 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     final String? s = url?.toString();
     final bool hasUrl =
         s != null && s.isNotEmpty && s.toLowerCase().trim() != 'null';
-
     if (hasUrl) {
       return Image.network(
         s!,
@@ -565,7 +604,6 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
             ),
       );
     }
-
     return Image.asset(
       'assets/placeholder.png',
       width: double.infinity,
@@ -593,6 +631,116 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
   Widget _buildReportDialog(BuildContext context) {
     final TextEditingController _reportController = TextEditingController();
     bool _isReporting = false;
+
+    Future<void> _submitReport(StateSetter setStateDialog) async {
+      // Validate token
+      if (_token == null) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+        return;
+      }
+      // Validate reason
+      final reason = _reportController.text.trim();
+      if (reason.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please provide a reason before submitting.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      // Validate product target
+      if (productId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Missing product information.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      setStateDialog(() => _isReporting = true);
+
+      final url = Uri.parse(
+        'https://aerofind-api.onrender.com/customer/reports',
+      );
+
+      // Build payload with available profile fields
+      final Map<String, dynamic> payload = {
+        'report_type': 'product',
+        'target_id': productId,
+        'reason': reason,
+        // Include profile fields when available
+        if (_customerId != null) 'customer_id': _customerId,
+        if (_customerEmail != null) 'customer_email': _customerEmail,
+        if (_customerName != null && _customerName!.isNotEmpty)
+          'customer_name': _customerName,
+      };
+
+      try {
+        final response = await http.post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $_token',
+          },
+          body: json.encode(payload),
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          // Optionally parse the response for confirmation
+          // final Map<String, dynamic> data = json.decode(response.body);
+
+          if (context.mounted) {
+            Navigator.pop(context); // Close dialog
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Report submitted successfully.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            // Navigate to "report submitted" screen as in previous flow
+            Navigator.pushReplacementNamed(
+              context,
+              AppRoutes.consumerreportsub,
+            );
+          }
+        } else if (response.statusCode == 401) {
+          if (context.mounted) {
+            Navigator.pop(context); // Close dialog
+            Navigator.pushReplacementNamed(context, AppRoutes.login);
+          }
+        } else {
+          // Show server error message if available
+          String msg = 'Failed to submit report';
+          try {
+            final body = json.decode(response.body);
+            if (body is Map && body['detail'] != null) {
+              msg = body['detail'].toString();
+            }
+          } catch (_) {}
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(msg), backgroundColor: Colors.red),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error submitting report.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (context.mounted) {
+          setStateDialog(() => _isReporting = false);
+        }
+      }
+    }
 
     return StatefulBuilder(
       builder: (context, setState) {
@@ -647,17 +795,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                             ),
                           )
                           : ElevatedButton(
-                            onPressed: () {
-                              setState(() => _isReporting = true);
-                              Future.delayed(const Duration(seconds: 2), () {
-                                Navigator.pop(context);
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  AppRoutes.consumerreportsub,
-                                  arguments: {'id': productId},
-                                );
-                              });
-                            },
+                            onPressed: () => _submitReport(setState),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF001F5B),
                               padding: const EdgeInsets.symmetric(vertical: 16),

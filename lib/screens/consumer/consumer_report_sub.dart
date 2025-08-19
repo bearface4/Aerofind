@@ -10,31 +10,59 @@ class ConsumerReportPage extends StatefulWidget {
 }
 
 class _ConsumerReportPageState extends State<ConsumerReportPage> {
-  int? itemId;
+  static const _tag = '[ConsumerReportPage]';
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('$_tag initState');
+    // Schedule navigation after the first frame so Navigator is ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('$_tag first frame rendered, scheduling auto-close in 3s');
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!mounted) {
+          debugPrint('$_tag not mounted, aborting auto-close');
+          return;
+        }
+        final nav = Navigator.of(context);
+        final canPop = nav.canPop();
+        debugPrint('$_tag auto-close fired. canPop=$canPop');
+        try {
+          if (canPop) {
+            debugPrint('$_tag popping to previous route');
+            nav.pop();
+          } else {
+            debugPrint('$_tag replacing with ${AppRoutes.consumermain}');
+            nav.pushReplacementNamed(AppRoutes.consumermain);
+          }
+        } catch (e, st) {
+          debugPrint('$_tag navigation error: $e\n$st');
+        }
+      });
+    });
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    debugPrint('$_tag didChangeDependencies');
+  }
 
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args != null && args is Map && args.containsKey('id')) {
-      final dynamic idValue = args['id'];
-      if (idValue is int) {
-        itemId = idValue;
-      } else if (idValue is String && int.tryParse(idValue) != null) {
-        itemId = int.parse(idValue);
-      }
+  @override
+  void didUpdateWidget(covariant ConsumerReportPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    debugPrint('$_tag didUpdateWidget');
+  }
 
-      if (itemId != null) {
-        Future.delayed(const Duration(seconds: 5), () {
-          Navigator.pop(context);
-        });
-      }
-    }
+  @override
+  void dispose() {
+    debugPrint('$_tag dispose');
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('$_tag build');
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
@@ -63,6 +91,7 @@ class _ConsumerReportPageState extends State<ConsumerReportPage> {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: Colors.black87),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
