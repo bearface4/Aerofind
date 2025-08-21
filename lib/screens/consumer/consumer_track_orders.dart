@@ -107,6 +107,42 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
     );
   }
 
+  // ---------- Method to get display status ----------
+  String _getDisplayStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Pending';
+      case 'processing':
+        return 'Processing';
+      case 'ready':
+        return 'Ready';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status.isEmpty ? 'Unknown Status' : status;
+    }
+  }
+
+  // ---------- Method to get status color ----------
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange; // Orange
+      case 'processing':
+        return Colors.blue; // Blue
+      case 'ready':
+        return Colors.green; // Green
+      case 'completed':
+        return const Color(0xFF002F6C); // Dark Blue
+      case 'cancelled':
+        return Colors.red; // Red
+      default:
+        return Colors.black; // Default black for unknown statuses
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -257,16 +293,13 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                                                         top: 9,
                                                       ),
                                                   child: Text(
-                                                    item['status'],
+                                                    _getDisplayStatus(
+                                                      item['status'] ?? '',
+                                                    ),
                                                     style: TextStyle(
-                                                      color:
-                                                          (item['status']
-                                                                      ?.toLowerCase() ==
-                                                                  'completed')
-                                                              ? const Color(
-                                                                0xFF002F6C,
-                                                              )
-                                                              : Colors.black,
+                                                      color: _getStatusColor(
+                                                        item['status'] ?? '',
+                                                      ),
                                                       fontWeight:
                                                           FontWeight.w500,
                                                       fontSize: 14,
