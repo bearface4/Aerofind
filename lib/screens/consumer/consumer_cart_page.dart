@@ -14,10 +14,15 @@ class ConsumerCartPage extends StatefulWidget {
 class _ConsumerCartPageState extends State<ConsumerCartPage> {
   List<dynamic> cartItems = [];
   bool isLoading = true;
-  double deliveryFee = 50.0;
+
+  // Delivery fee is fetched dynamically from the API (no hardcoding)
+  double deliveryFee = 0.0;
 
   // Optional: keep latest backend-provided total item count for debugging
   int? backendTotalItems;
+
+  // UI overlay for item update progress
+  bool _isUpdatingItem = false;
 
   @override
   void initState() {
@@ -33,6 +38,65 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
               : int.tryParse((item['quantity'] ?? 1).toString()) ?? 1;
       return sum + q;
     });
+  }
+
+  // Tries to read delivery fee from various keys and nested structures.
+  double _extractDeliveryFee(dynamic data) {
+    try {
+      num? asNum(dynamic v) {
+        if (v == null) return null;
+        if (v is num) return v;
+        return num.tryParse(v.toString());
+      }
+
+      // 1) Top-level possible keys
+      final candidatesTopLevel = [
+        'delivery_fee',
+        'deliveryFee',
+        'shipping_fee',
+        'shippingFee',
+        'fee',
+        'delivery',
+      ];
+      for (final k in candidatesTopLevel) {
+        if (data is Map && data.containsKey(k)) {
+          final val = asNum(data[k]);
+          if (val != null) return val.toDouble();
+        }
+      }
+
+      // 2) Nested common structures
+      if (data is Map && data['fees'] is Map) {
+        final fees = data['fees'] as Map;
+        final nestedCandidates = [
+          'delivery_fee',
+          'deliveryFee',
+          'shipping_fee',
+          'shippingFee',
+          'fee',
+        ];
+        for (final k in nestedCandidates) {
+          final val = asNum(fees[k]);
+          if (val != null) return val.toDouble();
+        }
+      }
+
+      if (data is Map && data['summary'] is Map) {
+        final summary = data['summary'] as Map;
+        final nestedCandidates = [
+          'delivery_fee',
+          'deliveryFee',
+          'shipping_fee',
+          'shippingFee',
+          'fee',
+        ];
+        for (final k in nestedCandidates) {
+          final val = asNum(summary[k]);
+          if (val != null) return val.toDouble();
+        }
+      }
+    } catch (_) {}
+    return 0.0;
   }
 
   Future<void> fetchCartItems() async {
@@ -99,6 +163,11 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
             );
           }
 
+          final parsedDeliveryFee = _extractDeliveryFee(data);
+          print(
+            '[CART][FETCH] Parsed delivery fee: ₱${parsedDeliveryFee.toStringAsFixed(2)}',
+          );
+
           final items = (data['items'] as List?) ?? const [];
           final localTotal = _computeLocalTotalQuantity(items);
           print('[CART][FETCH] Local computed total quantity: $localTotal');
@@ -116,6 +185,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
 
           setState(() {
             cartItems = items;
+            deliveryFee = parsedDeliveryFee;
             isLoading = false;
           });
         } else if (data is List) {
@@ -126,6 +196,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
           print('[CART][FETCH] Local computed total quantity: $localTotal');
           setState(() {
             cartItems = data;
+            deliveryFee = 0.0;
             isLoading = false;
           });
         } else {
@@ -159,24 +230,32 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
         'https://aerofind-api.onrender.com/customer/cart/items/$itemId',
       );
       print('[CART][DELETE] DELETE $deleteUri');
-      final deleteResponse = await http.delete(
-        deleteUri,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-      print('[CART][DELETE] Status: ${deleteResponse.statusCode}');
-      print('[CART][DELETE] Body: ${deleteResponse.body}');
 
-      if (deleteResponse.statusCode == 200 ||
-          deleteResponse.statusCode == 204) {
-        await fetchCartItems();
-        showSnackBar("Item removed from cart");
-      } else {
-        debugPrint(
-          '[CART][DELETE][ERROR] Failed: ${deleteResponse.statusCode}',
+      try {
+        setState(() => _isUpdatingItem = true);
+        final deleteResponse = await http.delete(
+          deleteUri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
         );
+        print('[CART][DELETE] Status: ${deleteResponse.statusCode}');
+        print('[CART][DELETE] Body: ${deleteResponse.body}');
+
+        if (deleteResponse.statusCode == 200 ||
+            deleteResponse.statusCode == 204) {
+          await fetchCartItems();
+          showSnackBar("Item removed from cart");
+        } else {
+          debugPrint(
+            '[CART][DELETE][ERROR] Failed: ${deleteResponse.statusCode}',
+          );
+        }
+      } catch (e) {
+        debugPrint('[CART][DELETE][ERROR] Exception: $e');
+      } finally {
+        if (mounted) setState(() => _isUpdatingItem = false);
       }
       return;
     }
@@ -188,6 +267,8 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
       final body = json.encode({'quantity': newQuantity});
       print('[CART][PUT] PUT $putUri');
       print('[CART][PUT] Body: $body');
+
+      setState(() => _isUpdatingItem = true);
 
       final response = await http.put(
         putUri,
@@ -209,6 +290,8 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
       }
     } catch (e) {
       debugPrint('[CART][PUT][ERROR] Exception: $e');
+    } finally {
+      if (mounted) setState(() => _isUpdatingItem = false);
     }
   }
 
@@ -259,13 +342,11 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
       );
 
       if (confirm == true) {
-        // Trigger delete path in updateQuantityInBackend
         await updateQuantityInBackend(itemId, 0);
       }
       return;
     }
 
-    // Regular +/- updates
     await updateQuantityInBackend(itemId, newQuantity);
   }
 
@@ -279,7 +360,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     );
   }
 
-  // ---------- Image helpers (use placeholder when URL is missing/invalid or on error) ----------
+  // ---------- Image helpers ----------
   String? _normalizedUrl(dynamic url) {
     final s = url?.toString().trim();
     if (s == null || s.isEmpty) return null;
@@ -287,33 +368,74 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     return s;
   }
 
-  Widget _cartImage(dynamic url) {
+  Widget _cartImage(dynamic url, double side) {
     final s = _normalizedUrl(url);
-    if (s != null && s.startsWith('http')) {
-      return Image.network(
-        s,
-        width: 130,
-        height: 130,
-        fit: BoxFit.cover,
-        errorBuilder:
-            (_, __, ___) => Image.asset(
-              'assets/placeholder.png',
-              width: 130,
-              height: 130,
+    final img =
+        (s != null && s.startsWith('http'))
+            ? Image.network(
+              s,
+              width: side,
+              height: side,
               fit: BoxFit.cover,
-            ),
-      );
-    }
-    return Image.asset(
-      'assets/placeholder.png',
-      width: 130,
-      height: 130,
-      fit: BoxFit.cover,
-    );
+              errorBuilder:
+                  (_, __, ___) => Image.asset(
+                    'assets/placeholder.png',
+                    width: side,
+                    height: side,
+                    fit: BoxFit.cover,
+                  ),
+            )
+            : Image.asset(
+              'assets/placeholder.png',
+              width: side,
+              height: side,
+              fit: BoxFit.cover,
+            );
+    return RepaintBoundary(child: img);
   }
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final width = media.size.width;
+    final isTablet = width >= 600;
+    final isDesktop = width >= 1024;
+
+    // Responsive sizing
+    final horizontalPad =
+        isDesktop
+            ? 32.0
+            : isTablet
+            ? 24.0
+            : 16.0;
+    final imageSide =
+        isDesktop
+            ? 160.0
+            : isTablet
+            ? 140.0
+            : 110.0;
+    final titleFont =
+        isDesktop
+            ? 20.0
+            : isTablet
+            ? 19.0
+            : 18.0;
+    final priceFont =
+        isDesktop
+            ? 18.0
+            : isTablet
+            ? 17.0
+            : 16.0;
+    final totalFont =
+        isDesktop
+            ? 20.0
+            : isTablet
+            ? 19.0
+            : 18.0;
+
+    // Constrain content width on large screens
+    final maxContentWidth = 900.0;
+
     double subTotal = cartItems.fold(
       0.0,
       (sum, item) =>
@@ -322,6 +444,192 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
               (item['quantity'] ?? 1),
     );
     double total = subTotal + deliveryFee;
+
+    final list = ListView.separated(
+      key: const PageStorageKey('cart_list'),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPad),
+      itemCount: cartItems.length,
+      addAutomaticKeepAlives: true,
+      separatorBuilder:
+          (_, __) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Divider(thickness: 1, color: Colors.grey.shade300),
+          ),
+      itemBuilder: (context, index) {
+        final item = cartItems[index];
+        final product = item['product'];
+        final quantity = item['quantity'] ?? 1;
+
+        return _buildCartItem(
+          product['name'] ?? '',
+          '₱ ${product['price'].toString()}',
+          product['image_url'],
+          quantity,
+          () => onQuantityChange(index, -1),
+          () => onQuantityChange(index, 1),
+          imageSide: imageSide,
+          titleFont: titleFont,
+          priceFont: priceFont,
+        );
+      },
+    );
+
+    final content = Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxContentWidth),
+        child: list,
+      ),
+    );
+
+    final pageBody =
+        isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : cartItems.isEmpty
+            ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Text(
+                  'Your cart is empty.',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+            : Column(
+              children: [
+                // List
+                Expanded(child: content),
+
+                // Subtotal & Delivery Fee
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxContentWidth),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF0F6FF),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(32),
+                        ),
+                      ),
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPad,
+                        24,
+                        horizontalPad,
+                        16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _summaryRow(
+                            'Sub Total',
+                            '₱${subTotal.toStringAsFixed(0)}',
+                          ),
+                          const SizedBox(height: 8),
+                          _summaryRow(
+                            'Delivery Fee',
+                            '₱${deliveryFee.toStringAsFixed(0)}',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Total & Checkout Button
+                SafeArea(
+                  top: false,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxContentWidth),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE0EBFF),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(42),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 10,
+                              offset: Offset(0, -2),
+                            ),
+                          ],
+                        ),
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPad,
+                          20,
+                          horizontalPad,
+                          24,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total',
+                                  style: TextStyle(
+                                    fontSize: totalFont,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                Text(
+                                  '₱${total.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontSize: totalFont,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                print(
+                                  '[CART][CHECKOUT] totalItems(local)=${_computeLocalTotalQuantity(cartItems)} '
+                                  '| backendTotalItems=$backendTotalItems '
+                                  '| subtotal=₱${subTotal.toStringAsFixed(2)} '
+                                  '| delivery=₱${deliveryFee.toStringAsFixed(2)} '
+                                  '| total=₱${total.toStringAsFixed(2)}',
+                                );
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.consumercheckout,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00296B),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                              ),
+                              child: const Text(
+                                'Buy Now',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -357,145 +665,28 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body:
-          isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : cartItems.isEmpty
-              ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32.0),
-                  child: Text(
-                    'Your cart is empty.',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                    textAlign: TextAlign.center,
+      body: Stack(
+        children: [
+          // Main content
+          Positioned.fill(child: pageBody),
+
+          // Loading overlay when updating an item (+/-/remove)
+          if (_isUpdatingItem)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: Colors.black38,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: const Color(0xFF00296B),
+                    ),
                   ),
                 ),
-              )
-              : Column(
-                children: [
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: cartItems.length,
-                      separatorBuilder:
-                          (_, __) => const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Divider(thickness: 1, color: Colors.grey),
-                          ),
-                      itemBuilder: (context, index) {
-                        final item = cartItems[index];
-                        final product = item['product'];
-                        final quantity = item['quantity'] ?? 1;
-
-                        return _buildCartItem(
-                          product['name'] ?? '',
-                          '₱ ${product['price'].toString()}',
-                          product['image_url'], // pass raw URL (can be null)
-                          quantity,
-                          () => onQuantityChange(index, -1),
-                          () => onQuantityChange(index, 1),
-                        );
-                      },
-                    ),
-                  ),
-
-                  // Subtotal & Delivery Fee
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF0F6FF),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(32),
-                      ),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _summaryRow(
-                          'Sub Total',
-                          '₱${subTotal.toStringAsFixed(0)}',
-                        ),
-                        const SizedBox(height: 8),
-                        _summaryRow(
-                          'Delivery Fee',
-                          '₱${deliveryFee.toStringAsFixed(0)}',
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Total & Checkout Button
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE0EBFF),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(42),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Total',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                            Text(
-                              '₱${total.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () {
-                            print(
-                              '[CART][CHECKOUT] totalItems(local)=${_computeLocalTotalQuantity(cartItems)} '
-                              '| backendTotalItems=$backendTotalItems '
-                              '| subtotal=₱${subTotal.toStringAsFixed(2)} '
-                              '| delivery=₱${deliveryFee.toStringAsFixed(2)} '
-                              '| total=₱${total.toStringAsFixed(2)}',
-                            );
-                            Navigator.pushNamed(
-                              context,
-                              AppRoutes.consumercheckout,
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00296B),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: const Text(
-                            'Buy Now',
-                            style: TextStyle(fontSize: 16, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -505,57 +696,75 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     dynamic imageUrl,
     int quantity,
     VoidCallback onRemove,
-    VoidCallback onAdd,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: _cartImage(imageUrl),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    VoidCallback onAdd, {
+    required double imageSide,
+    required double titleFont,
+    required double priceFont,
+  }) {
+    return RepaintBoundary(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: _cartImage(imageUrl, imageSide),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Title wraps gracefully with ellipsis
                   Text(
-                    price,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: titleFont,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
+                  const SizedBox(height: 8),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _quantityButton(Icons.remove, onRemove),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      // Price grows but can wrap on tiny devices
+                      Expanded(
                         child: Text(
-                          quantity.toString(),
-                          style: const TextStyle(fontSize: 16),
+                          price,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: priceFont,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ),
-                      _quantityButton(Icons.add, onAdd),
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _quantityButton(Icons.remove, onRemove),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              quantity.toString(),
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                          _quantityButton(Icons.add, onAdd),
+                        ],
+                      ),
                     ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -580,8 +789,21 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-        Text(value, style: const TextStyle(color: Colors.black, fontSize: 14)),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.grey, fontSize: 14),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.black, fontSize: 14),
+        ),
       ],
     );
   }
