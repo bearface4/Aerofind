@@ -484,7 +484,9 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
 
     final pageBody =
         isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00296B)),
+            )
             : cartItems.isEmpty
             ? Center(
               child: Padding(
@@ -600,9 +602,17 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                                   '| delivery=₱${deliveryFee.toStringAsFixed(2)} '
                                   '| total=₱${total.toStringAsFixed(2)}',
                                 );
+
+                                // Pass full order summary to Checkout
                                 Navigator.pushNamed(
                                   context,
                                   AppRoutes.consumercheckout,
+                                  arguments: {
+                                    'items': cartItems,
+                                    'subtotal': subTotal,
+                                    'deliveryFee': deliveryFee,
+                                    'total': total,
+                                  },
                                 );
                               },
                               style: ElevatedButton.styleFrom(
@@ -677,10 +687,8 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                 absorbing: true,
                 child: Container(
                   color: Colors.black38,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: const Color(0xFF00296B),
-                    ),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00296B)),
                   ),
                 ),
               ),

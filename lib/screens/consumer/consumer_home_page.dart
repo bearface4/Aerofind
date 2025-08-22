@@ -64,6 +64,22 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     return Uri.parse('$base?store_type=$enc');
   }
 
+  num? _asNum(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v;
+    return num.tryParse(v.toString());
+  }
+
+  // Extract per-item delivery fee from seller.delivery_fee (based on your payload)
+  double _extractItemDeliveryFeeFromSeller(Map<String, dynamic> item) {
+    final seller = item['seller'];
+    if (seller is Map) {
+      final val = _asNum(seller['delivery_fee']);
+      if (val != null) return val.toDouble();
+    }
+    return 0.0;
+  }
+
   Future<void> fetchProducts({String? storeType}) async {
     if (_token == null) return;
     final uri = _productsUri(storeType: storeType);
@@ -81,10 +97,17 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       );
       print('[PRODUCTS] Status Code: ${response.statusCode}');
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final decoded = json.decode(response.body);
+        final List<dynamic> data = decoded is List ? decoded : <dynamic>[];
         print('[PRODUCTS] Received ${data.length} items');
+
         final fetched =
             data.map<Map<String, dynamic>>((item) {
+              // Extract per-item fee from seller.delivery_fee
+              double itemFee = 0.0;
+              if (item is Map<String, dynamic>) {
+                itemFee = _extractItemDeliveryFeeFromSeller(item);
+              }
               return {
                 'id': item['id'],
                 'title': item['name'],
@@ -96,13 +119,20 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 'average_rating': item['average_rating'],
                 'rating_count': item['rating_count'],
                 'categories': item['categories'],
-                'store_type': item['store_type'],
+                'store_type':
+                    (item['seller'] is Map &&
+                            (item['seller'] as Map)['store_type'] != null)
+                        ? (item['seller'] as Map)['store_type']
+                        : item['store_type'],
+                // Store the parsed fee on the product
+                'delivery_fee': itemFee,
               };
             }).toList();
+
         // Debug
         for (final p in fetched) {
           print(
-            '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}',
+            '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}, delivery_fee=${p['delivery_fee']}',
           );
         }
 
@@ -195,10 +225,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     }
   }
 
-  // Efficient search handling:
-  // - Always use server search.
-  // - Build full product maps using search response fields when not found in current list, so images display.
-  // - Preserve current category context visually; clearing search restores category view.
+  // Server search
   Future<void> searchProducts(String query) async {
     const url = 'https://aerofind-api.onrender.com/search/search';
     if (_token == null || query.trim().isEmpty) {
@@ -220,23 +247,19 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       print('[SEARCH] Body: ${response.body}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        // Build results. Try to reuse current product entries for consistent formatting.
         final List<Map<String, dynamic>> results = [];
         for (final item in data) {
           final int id = (item['id'] as num).toInt();
 
-          // First try from current products (already price-capped and filtered)
           final existing = products.cast<Map<String, dynamic>?>().firstWhere(
             (p) => p?['id'] == id,
             orElse: () => null,
           );
-
           if (existing != null) {
             results.add(existing);
             continue;
           }
 
-          // Else try from allProducts (last fetch set)
           final fromAll = allProducts.cast<Map<String, dynamic>?>().firstWhere(
             (p) => p?['id'] == id,
             orElse: () => null,
@@ -246,24 +269,36 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             continue;
           }
 
-          // Else build from search item fields (use image_url if present)
+          // Map search item; also look into seller.delivery_fee if present
+          double itemFee = 0.0;
+          if (item is Map<String, dynamic>) {
+            final seller = item['seller'];
+            if (seller is Map) {
+              final v = _asNum(seller['delivery_fee']);
+              if (v != null) itemFee = v.toDouble();
+            }
+          }
+
           results.add({
             'id': id,
             'title': item['name'],
             'price': item['price'],
-            'image':
-                item['image_url'], // important: use image_url to avoid placeholders
+            'image': item['image_url'],
             'description': item['description'],
             'stocks': item['stocks'],
             'seller_id': item['seller_id'],
             'average_rating': item['average_rating'],
             'rating_count': item['rating_count'],
             'categories': item['categories'] ?? [],
-            'store_type': item['store_type'],
+            'store_type':
+                (item['seller'] is Map &&
+                        (item['seller'] as Map)['store_type'] != null)
+                    ? (item['seller'] as Map)['store_type']
+                    : item['store_type'],
+            'delivery_fee': itemFee,
           });
         }
 
-        // Apply current max price cap client-side to search results as well
         final capped =
             results.where((p) {
               final price = p['price'];
@@ -331,12 +366,52 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     }
   }
 
+  // Build a single-item order summary payload from a product
+  Map<String, dynamic> _singleItemOrderArgs(Map<String, dynamic> product) {
+    final double price =
+        (product['price'] is num)
+            ? (product['price'] as num).toDouble()
+            : double.tryParse('${product['price']}') ?? 0.0;
+    const int qty = 1;
+    final double subtotal = price * qty;
+    // Prefer per-item fee parsed from seller.delivery_fee; fallback to 0.0
+    final double perItemFee =
+        (product['delivery_fee'] is num)
+            ? (product['delivery_fee'] as num).toDouble()
+            : double.tryParse('${product['delivery_fee']}') ?? 0.0;
+    final double deliveryFee = perItemFee;
+    final double total = subtotal + deliveryFee;
+
+    // Build a cart-like items list so checkout summary can render uniformly
+    final List<Map<String, dynamic>> items = [
+      {
+        'id': product['id'],
+        'quantity': qty,
+        'product': {
+          'id': product['id'],
+          'name': product['title'],
+          'price': price,
+          'image_url': product['image'],
+        },
+      },
+    ];
+
+    return {
+      'items': items,
+      'subtotal': subtotal,
+      'deliveryFee': deliveryFee,
+      'total': total,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF002363)),
+            )
             : RefreshIndicator(
               onRefresh: () async {
                 await fetchProducts(storeType: _selectedCategoryTitle);
@@ -411,7 +486,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
               controller: _searchController,
               onChanged: (value) async {
                 if (value.trim().isEmpty) {
-                  // When clearing search, restore current category view
                   setState(() => _isLoading = true);
                   await fetchProducts(storeType: _selectedCategoryTitle);
                   await fetchCartCount();
@@ -586,13 +660,12 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
+                              // Build a single-item order summary using item-level delivery fee from seller.delivery_fee
+                              final args = _singleItemOrderArgs(product);
                               Navigator.pushNamed(
                                 context,
                                 AppRoutes.consumercheckout,
-                                arguments: {
-                                  'product_id': product['id'],
-                                  'quantity': 1,
-                                },
+                                arguments: args,
                               );
                             },
                             style: ElevatedButton.styleFrom(
@@ -776,7 +849,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 12),
                     const Align(
                       alignment: Alignment.centerLeft,

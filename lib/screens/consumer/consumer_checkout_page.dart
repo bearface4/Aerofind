@@ -14,10 +14,8 @@ class ConsumerCheckoutPage extends StatefulWidget {
 
 class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
   static const Color primaryColor = Color(0xFF001F5B);
-  static const int item1Price = 144;
-  static const int item2Price = 129;
-  static const int deliveryFee = 50;
 
+  // Selected payment method (UI state)
   String selectedPaymentMethod = 'Cash on Delivery';
 
   // Address data/state
@@ -27,10 +25,46 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
   List<Map<String, dynamic>> _addresses = [];
   int? _selectedAddressIndex;
 
+  // Arguments from Cart page
+  List<dynamic> _cartItems = [];
+  double _argSubtotal = 0.0;
+  double _argDeliveryFee = 0.0;
+  double _argTotal = 0.0;
+
+  // Guard to read route args only once
+  bool _didReadArgs = false;
+
   @override
   void initState() {
     super.initState();
     _loadTokenAndFetch();
+  }
+
+  // Safely read route arguments here (context is fully usable)
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didReadArgs) return;
+    _didReadArgs = true;
+
+    final route = ModalRoute.of(context);
+    final rawArgs = route?.settings.arguments;
+    if (rawArgs is Map) {
+      try {
+        _cartItems = (rawArgs['items'] as List<dynamic>?) ?? [];
+        _argSubtotal = (rawArgs['subtotal'] ?? 0).toDouble();
+        _argDeliveryFee = (rawArgs['deliveryFee'] ?? 0).toDouble();
+        _argTotal = (rawArgs['total'] ?? 0).toDouble();
+      } catch (e) {
+        _cartItems = [];
+        _argSubtotal = 0.0;
+        _argDeliveryFee = 0.0;
+        _argTotal = 0.0;
+      }
+    }
+    print(
+      '[CHK][ARGS] items=${_cartItems.length} subtotal=$_argSubtotal deliveryFee=$_argDeliveryFee total=$_argTotal',
+    );
   }
 
   Future<void> _loadTokenAndFetch() async {
@@ -87,6 +121,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
             rawList.map<Map<String, dynamic>>((e) {
               final m = Map<String, dynamic>.from(e as Map);
               return {
+                'id': m['id'],
                 'label': m['label'] ?? '',
                 'address_line': m['address_line'] ?? '',
                 'barangay': m['barangay'] ?? '',
@@ -168,10 +203,40 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     await _fetchAddresses();
   }
 
+  // Helpers to read per-item data
+  String _productName(dynamic item) {
+    try {
+      return (item['product']?['name'] ?? '').toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  int _quantity(dynamic item) {
+    try {
+      final q = item['quantity'] ?? 1;
+      if (q is int) return q;
+      return int.tryParse(q.toString()) ?? 1;
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  double _price(dynamic item) {
+    try {
+      final p = item['product']?['price'] ?? 0;
+      if (p is num) return p.toDouble();
+      return double.tryParse(p.toString()) ?? 0.0;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final int subtotal = item1Price + item2Price;
-    final int total = subtotal + deliveryFee;
+    final double subtotal = _argSubtotal;
+    final double deliveryFee = _argDeliveryFee;
+    final double total = _argTotal;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -198,7 +263,6 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
         titleSpacing: -5,
       ),
 
-      // Bottom panels moved here for responsive layout
       bottomNavigationBar: SafeArea(
         top: false,
         minimum: const EdgeInsets.only(top: 8),
@@ -228,16 +292,34 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 12),
-                  _orderRow('1x Chicken Wings', item1Price),
-                  _orderRow('1x Creamy Pepper Beef', item2Price),
+
+                  if (_cartItems.isNotEmpty)
+                    ..._cartItems.map((it) {
+                      final name = _productName(it);
+                      final qty = _quantity(it);
+                      final price = _price(it);
+                      final lineTotal = (price * qty).toStringAsFixed(0);
+                      final label =
+                          '${qty}x ${name.isNotEmpty ? name : 'Item'}';
+                      return _orderRow(label, '₱ $lineTotal');
+                    }).toList()
+                  else
+                    const Text(
+                      'No items found.',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+
                   const Divider(height: 24),
-                  _orderRow('Subtotal', subtotal),
-                  _orderRow('Delivery Fee', deliveryFee),
+                  _orderRow('Subtotal', '₱ ${subtotal.toStringAsFixed(0)}'),
+                  _orderRow(
+                    'Delivery Fee',
+                    '₱ ${deliveryFee.toStringAsFixed(0)}',
+                  ),
                 ],
               ),
             ),
 
-            // Total Section + Confirm
+            // Total & Confirm
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -255,12 +337,16 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _orderRow('Total', total, isTotal: true),
+                  _orderRow(
+                    'Total',
+                    '₱ ${total.toStringAsFixed(0)}',
+                    isTotal: true,
+                  ),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_selectedAddressIndex == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -272,13 +358,21 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                           );
                           return;
                         }
+
                         final chosen = _addresses[_selectedAddressIndex!];
+                        final addressId = chosen['id'];
+
                         print('[CHK] Confirm Order with:');
                         print(
                           '      Address: ${chosen['label']} - ${chosen['address_line']}',
                         );
                         print('      Payment: $selectedPaymentMethod');
-                        // TODO: Place order API
+                        print(
+                          '      Totals: subtotal=$subtotal delivery=$deliveryFee total=$total',
+                        );
+
+                        // TODO: Call POST /customer/checkout
+                        // await _placeOrder(addressId: addressId, paymentMethod: selectedPaymentMethod);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
@@ -316,7 +410,6 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   children: [
-                    // Address list
                     if (_addresses.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -363,6 +456,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                       }),
                     _addAddressButton(),
                     const SizedBox(height: 24),
+
                     const Text(
                       'Payment method',
                       style: TextStyle(
@@ -406,7 +500,69 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     );
   }
 
-  // Navigate to the 'consumerdelivery' route
+  Future<void> _placeOrder({
+    required dynamic addressId,
+    required String paymentMethod,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing session. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/checkout',
+    );
+    final body = json.encode({
+      'address_id': addressId,
+      'payment_method': paymentMethod,
+      // Include items only if the backend requires them, otherwise the server uses the authenticated cart.
+      // 'items': _cartItems.map((it) => {
+      //   'id': it['id'],
+      //   'product_id': it['product']?['id'],
+      //   'quantity': _quantity(it),
+      // }).toList(),
+    });
+
+    try {
+      final resp = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+
+      print('[CHK][POST] Status: ${resp.statusCode}');
+      print('[CHK][POST] Body: ${resp.body}');
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        // final data = jsonDecode(resp.body);
+        // Handle success (navigate/show receipt)
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to place order (${resp.statusCode}).'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('[CHK][POST][ERROR] $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network error while placing order.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Widget _addAddressButton() {
     return GestureDetector(
       onTap: () async {
@@ -456,6 +612,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
               children: [
                 Text(
                   title,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -500,21 +657,25 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     );
   }
 
-  Widget _orderRow(String label, int amount, {bool isTotal = false}) {
+  Widget _orderRow(String label, String amount, {bool isTotal = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isTotal ? 18 : 14,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: isTotal ? 18 : 14,
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
           ),
+          const SizedBox(width: 8),
           Text(
-            '₱ $amount',
+            amount,
             style: TextStyle(
               fontSize: isTotal ? 18 : 14,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
