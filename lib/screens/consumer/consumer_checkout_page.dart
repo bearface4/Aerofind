@@ -232,6 +232,18 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     }
   }
 
+  // Map UI payment label -> API value
+  String _mapPaymentMethodForApi(String ui) {
+    switch (ui.toLowerCase()) {
+      case 'cash on delivery':
+        return 'cash';
+      case 'gcash':
+        return 'gcash';
+      default:
+        return 'cash';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final double subtotal = _argSubtotal;
@@ -371,8 +383,10 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                           '      Totals: subtotal=$subtotal delivery=$deliveryFee total=$total',
                         );
 
-                        // TODO: Call POST /customer/checkout
-                        // await _placeOrder(addressId: addressId, paymentMethod: selectedPaymentMethod);
+                        await _placeOrder(
+                          addressId: addressId,
+                          paymentMethod: selectedPaymentMethod,
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
@@ -517,16 +531,15 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     final uri = Uri.parse(
       'https://aerofind-api.onrender.com/customer/checkout',
     );
-    final body = json.encode({
-      'address_id': addressId,
-      'payment_method': paymentMethod,
-      // Include items only if the backend requires them, otherwise the server uses the authenticated cart.
-      // 'items': _cartItems.map((it) => {
-      //   'id': it['id'],
-      //   'product_id': it['product']?['id'],
-      //   'quantity': _quantity(it),
-      // }).toList(),
-    });
+
+    // Build payload exactly as required by API
+    final payload = <String, dynamic>{
+      'delivery_address_id': addressId,
+      'payment_method': _mapPaymentMethodForApi(paymentMethod),
+      'notes': 'string',
+    };
+
+    final body = json.encode(payload);
 
     try {
       final resp = await http.post(
@@ -542,24 +555,53 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
       print('[CHK][POST] Body: ${resp.body}');
 
       if (resp.statusCode == 200 || resp.statusCode == 201) {
-        // final data = jsonDecode(resp.body);
-        // Handle success (navigate/show receipt)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Order placed successfully.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Navigate to main consumer page and clear all previous routes
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.consumermain,
+            (route) => false,
+          );
+        }
+      } else if (resp.statusCode == 401) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Session expired. Please log in again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       } else {
+        String errMsg = 'Failed to place order (${resp.statusCode}).';
+        try {
+          final d = jsonDecode(resp.body);
+          if (d is Map && d['message'] is String) {
+            errMsg = d['message'];
+          }
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errMsg), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      print('[CHK][POST][ERROR] $e');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to place order (${resp.statusCode}).'),
+          const SnackBar(
+            content: Text('Network error while placing order.'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      print('[CHK][POST][ERROR] $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Network error while placing order.'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
