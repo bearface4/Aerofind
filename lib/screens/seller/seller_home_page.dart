@@ -18,12 +18,16 @@ class _SellerHomePageState extends State<SellerHomePage> {
 
   bool _isLoadingOrders = false;
   bool _isLoadingProducts = false;
+  bool _isLoadingSales = false; // NEW: loading flag for total sales
 
   // NEW: controls whether to show all orders or only first 2
   bool _showAllOrders = false;
 
   List<Map<String, dynamic>> _orders = [];
   List<Map<String, dynamic>> _products = [];
+
+  // NEW: total sales value (as a formatted string)
+  String _totalSalesText = '0.00';
 
   @override
   void initState() {
@@ -40,7 +44,11 @@ class _SellerHomePageState extends State<SellerHomePage> {
   }
 
   Future<void> _refreshAll() async {
-    await Future.wait([_fetchOrders(), _fetchProducts()]);
+    await Future.wait([
+      _fetchTotalSales(), // NEW: fetch total sales alongside others
+      _fetchOrders(),
+      _fetchProducts(),
+    ]);
   }
 
   // ---------- Helpers ----------
@@ -66,6 +74,130 @@ class _SellerHomePageState extends State<SellerHomePage> {
       v is int ? v : int.tryParse(v?.toString() ?? '') ?? 0;
   num _toNum(dynamic v) =>
       v is num ? v : num.tryParse(v?.toString() ?? '') ?? 0;
+
+  String _formatCurrency(num value) {
+    // Simple formatting with thousands separator; adjust as needed
+    final s = value.toStringAsFixed(2);
+    final parts = s.split('.');
+    final intPart = parts[0];
+    final decPart = parts.length > 1 ? parts[1] : '00';
+    final buf = StringBuffer();
+    for (int i = 0; i < intPart.length; i++) {
+      final revIdx = intPart.length - 1 - i;
+      buf.write(intPart[revIdx]);
+      if (i % 3 == 2 && revIdx != 0) buf.write(',');
+    }
+    final formattedInt = buf.toString().split('').reversed.join();
+    return '$formattedInt.$decPart';
+  }
+
+  // ---------- GET /seller/total-sales ----------
+  Future<void> _fetchTotalSales() async {
+    if (!mounted) return;
+    if (_token == null || _token!.isEmpty) {
+      debugPrint(
+        '[SALE][ERROR] Missing token — cannot GET /seller/total-sales',
+      );
+      setState(() {
+        _totalSalesText = '0.00';
+      });
+      return;
+    }
+
+    const endpoint = 'https://aerofind-api.onrender.com/seller/total-sales';
+    debugPrint('[SALE][GET] $endpoint');
+    setState(() => _isLoadingSales = true);
+    final sw = Stopwatch()..start();
+
+    try {
+      final resp = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+      sw.stop();
+      debugPrint(
+        '[SALE][RESP] Status: ${resp.statusCode} (${sw.elapsedMilliseconds} ms)',
+      );
+      debugPrint('[SALE][RESP] Body (first 1500): ${_firstK(resp.body, 1500)}');
+
+      if (resp.statusCode == 200) {
+        // Expecting a response with a numeric total, e.g.:
+        // { "total_sales": 10250.0 } or just a bare number, or a string.
+        num total = 0;
+        try {
+          final decoded = jsonDecode(resp.body);
+          if (decoded is Map) {
+            final m = _deepStringMap(decoded);
+            final v = m['total_sales'] ?? m['total'] ?? m['sum'] ?? 0;
+            total = _toNum(v);
+          } else if (decoded is num) {
+            total = decoded;
+          } else if (decoded is String) {
+            total = _toNum(decoded);
+          } else {
+            total = 0;
+          }
+        } catch (e) {
+          debugPrint('[SALE][PARSE][ERROR] $e');
+          total = 0;
+        }
+
+        final formatted = _formatCurrency(total);
+        debugPrint('[SALE][PARSED] total=$total formatted=$formatted');
+
+        if (!mounted) return;
+        setState(() {
+          _totalSalesText = formatted;
+        });
+      } else if (resp.statusCode == 401) {
+        debugPrint(
+          '[SALE][ERROR] 401 Unauthorized while fetching total sales.',
+        );
+        if (!mounted) return;
+        setState(() {
+          _totalSalesText = '0.00';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        debugPrint(
+          '[SALE][ERROR] Failed to fetch total sales: ${resp.statusCode}',
+        );
+        if (!mounted) return;
+        setState(() {
+          _totalSalesText = '0.00';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to fetch total sales (${resp.statusCode}).'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      sw.stop();
+      debugPrint('[SALE][ERROR] $e');
+      if (!mounted) return;
+      setState(() {
+        _totalSalesText = '0.00';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network error while fetching total sales.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoadingSales = false);
+    }
+  }
 
   // ---------- GET /seller/orders ----------
   Future<void> _fetchOrders() async {
@@ -138,7 +270,7 @@ class _SellerHomePageState extends State<SellerHomePage> {
         if (!mounted) return;
         setState(() {
           _orders = parsed;
-          // NEW: collapse orders after (re)fetch so default shows at most 2
+          // collapse orders after (re)fetch so default shows at most 2
           _showAllOrders = false;
         });
       } else if (resp.statusCode == 401) {
@@ -281,13 +413,16 @@ class _SellerHomePageState extends State<SellerHomePage> {
     final visibleOrders =
         _showAllOrders || !hasExtraOrders ? _orders : _orders.take(2).toList();
 
+    final salesLoading = _isLoadingSales;
+    final salesText = salesLoading ? '••••••••' : _totalSalesText;
+
     return Scaffold(
       backgroundColor: const Color(0xfff8f8f8),
       body: SafeArea(
         child: RefreshIndicator(
           color: _primary,
           onRefresh:
-              _refreshAll, // pull-down refresh for both Orders & Products
+              _refreshAll, // pull-down refresh for Orders, Products, Sales
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -342,7 +477,7 @@ class _SellerHomePageState extends State<SellerHomePage> {
                                     ),
                                   ),
                                   TextSpan(
-                                    text: '10,250.00',
+                                    text: salesText, // NEW: dynamic sales
                                     style: GoogleFonts.poppins(
                                       fontSize: 32,
                                       fontWeight: FontWeight.bold,
@@ -352,6 +487,18 @@ class _SellerHomePageState extends State<SellerHomePage> {
                                 ],
                               ),
                             ),
+                            if (salesLoading)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: SizedBox(
+                                  height: 4,
+                                  width: 80,
+                                  child: LinearProgressIndicator(
+                                    color: Colors.white,
+                                    backgroundColor: Colors.white24,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -415,7 +562,7 @@ class _SellerHomePageState extends State<SellerHomePage> {
                           color: Colors.grey,
                         ),
                       ),
-                      // NEW: View More / View Less toggle, shown only if there are > 2 orders
+                      // View More / View Less toggle, shown only if there are > 2 orders
                       if (hasOrders && hasExtraOrders)
                         TextButton(
                           onPressed: () {
