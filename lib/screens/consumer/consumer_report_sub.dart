@@ -19,22 +19,19 @@ class _ConsumerReportPageState extends State<ConsumerReportPage> {
     // Schedule navigation after the first frame so Navigator is ready.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('$_tag first frame rendered, scheduling auto-close in 3s');
-      Future.delayed(const Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 5), () {
         if (!mounted) {
           debugPrint('$_tag not mounted, aborting auto-close');
           return;
         }
-        final nav = Navigator.of(context);
-        final canPop = nav.canPop();
-        debugPrint('$_tag auto-close fired. canPop=$canPop');
         try {
-          if (canPop) {
-            debugPrint('$_tag popping to previous route');
-            nav.pop();
-          } else {
-            debugPrint('$_tag replacing with ${AppRoutes.consumermain}');
-            nav.pushReplacementNamed(AppRoutes.consumermain);
-          }
+          debugPrint(
+            '$_tag auto-close fired. Navigating with pushNamedAndRemoveUntil',
+          );
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            AppRoutes.consumermain,
+            (route) => false, // ⬅ clears all previous routes
+          );
         } catch (e, st) {
           debugPrint('$_tag navigation error: $e\n$st');
         }
