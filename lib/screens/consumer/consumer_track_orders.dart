@@ -22,6 +22,24 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
     _fetchOrders();
   }
 
+  // ---------- Device helpers (mobile-focused; tablets not scaled) ----------
+  bool _isTablet(BuildContext context) {
+    final shortest = MediaQuery.of(context).size.shortestSide;
+    return shortest >= 600; // common heuristic
+  }
+
+  /// Mobile-first scale: clamp width to [320, 430] for phones.
+  /// On tablets, return 1.0 (no upscaling; we also constrain width below).
+  double _scale(BuildContext context) {
+    if (_isTablet(context)) return 1.0;
+    final w = MediaQuery.of(context).size.width.clamp(320.0, 430.0);
+    final s = w / 375.0; // iPhone X-ish baseline
+    return s.clamp(0.90, 1.10);
+  }
+
+  double _sp(BuildContext context, double base) => base * _scale(context);
+  double _pad(BuildContext context, double base) => base * _scale(context);
+
   Future<void> _fetchOrders() async {
     setState(() => isLoading = true);
     try {
@@ -53,9 +71,10 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
           orders =
               data.map<Map<String, dynamic>>((order) {
                 return {
-                  'id': order['id'], // Add the product ID here
+                  // ORDER id (used for trackview)
+                  'id': order['id'],
                   'title': order['product']?['name'] ?? '',
-                  'note': order['notes'] ?? '',
+                  'note': order['notes'],
                   'price': '₱ ${order['total_amount'] ?? 0}',
                   'image': order['product']?['image_url'],
                   'status': order['status'] ?? '',
@@ -82,32 +101,39 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
     return s;
   }
 
-  Widget _orderImage(dynamic url) {
+  Widget _orderImage(BuildContext context, dynamic url) {
     final s = _normalizedUrl(url);
+    // Mobile-focused image size: base on effective phone width (<= 430)
+    final effectiveWidth =
+        _isTablet(context)
+            ? 430.0
+            : MediaQuery.of(context).size.width.clamp(320.0, 430.0);
+    final imgSize = (effectiveWidth * 0.22).clamp(72.0, 110.0);
+
     if (s != null && s.startsWith('http')) {
       return Image.network(
         s,
-        width: 100,
-        height: 100,
+        width: imgSize,
+        height: imgSize,
         fit: BoxFit.cover,
         errorBuilder:
             (_, __, ___) => Image.asset(
               'assets/placeholder.png',
-              width: 100,
-              height: 100,
+              width: imgSize,
+              height: imgSize,
               fit: BoxFit.cover,
             ),
       );
     }
     return Image.asset(
       'assets/placeholder.png',
-      width: 100,
-      height: 100,
+      width: imgSize,
+      height: imgSize,
       fit: BoxFit.cover,
     );
   }
 
-  // ---------- Method to get display status ----------
+  // ---------- Display status ----------
   String _getDisplayStatus(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -125,210 +151,280 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
     }
   }
 
-  // ---------- Method to get status color ----------
+  // ---------- Status color ----------
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
-        return Colors.orange; // Orange
+        return Colors.orange;
       case 'processing':
-        return Colors.blue; // Blue
+        return Colors.blue;
       case 'ready':
-        return Colors.green; // Green
+        return Colors.green;
       case 'completed':
-        return const Color(0xFF002F6C); // Dark Blue
+        return const Color(0xFF002F6C);
       case 'cancelled':
-        return Colors.red; // Red
+        return Colors.red;
       default:
-        return Colors.black; // Default black for unknown statuses
+        return Colors.black;
     }
+  }
+
+  // ---------- Notes normalization (treat literal "string" as no notes) ----------
+  String _normalizeNotes(dynamic raw) {
+    final s = raw?.toString().trim();
+    if (s == null || s.isEmpty) return 'No notes';
+    if (s.toLowerCase() == 'string') return 'No notes'; // literal word
+    return s;
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = _scale(context);
+    final horiz = _pad(context, 16);
+    final topSpace = _pad(context, 40);
+
+    // On tablets, center a phone-width column so UI stays mobile-focused
+    final maxContentWidth = _isTablet(context) ? 480.0 : double.infinity;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              const Text.rich(
-                TextSpan(
-                  children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: horiz),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: topSpace),
+                  Text.rich(
                     TextSpan(
-                      text: "Track",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF002F6C),
-                      ),
+                      children: [
+                        TextSpan(
+                          text: "Track",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF002F6C),
+                          ),
+                        ),
+                        TextSpan(
+                          text: " Orders",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
                     ),
-                    TextSpan(
-                      text: " Orders",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-                style: TextStyle(fontSize: 24),
-              ),
-              const SizedBox(height: 16),
+                    style: TextStyle(fontSize: _sp(context, 24)),
+                  ),
+                  SizedBox(height: _pad(context, 16)),
 
-              Expanded(
-                child:
-                    isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : RefreshIndicator(
-                          onRefresh: _fetchOrders,
-                          child:
-                              orders.isEmpty
-                                  ? SingleChildScrollView(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    child: SizedBox(
-                                      height:
-                                          MediaQuery.of(context).size.height *
-                                          0.6,
-                                      child: const Center(
-                                        child: Text("No orders found"),
-                                      ),
-                                    ),
-                                  )
-                                  : ListView.separated(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    itemCount: orders.length,
-                                    separatorBuilder:
-                                        (context, index) => const Divider(
-                                          color: Colors.black12,
-                                          thickness: 1,
-                                          height: 32,
-                                        ),
-                                    itemBuilder: (context, index) {
-                                      final item = orders[index];
-
-                                      final rowContent = Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            child: _orderImage(item['image']),
+                  Expanded(
+                    child:
+                        isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : RefreshIndicator(
+                              onRefresh: _fetchOrders,
+                              child:
+                                  orders.isEmpty
+                                      ? SingleChildScrollView(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        child: SizedBox(
+                                          height:
+                                              MediaQuery.of(
+                                                context,
+                                              ).size.height *
+                                              0.6,
+                                          child: const Center(
+                                            child: Text("No orders found"),
                                           ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                Expanded(
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          vertical: 4,
-                                                        ),
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          item['title'],
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 18,
+                                        ),
+                                      )
+                                      : ListView.separated(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        itemCount: orders.length,
+                                        separatorBuilder:
+                                            (context, index) => const Divider(
+                                              color: Colors.black12,
+                                              thickness: 1,
+                                              height: 32,
+                                            ),
+                                        itemBuilder: (context, index) {
+                                          final item = orders[index];
+                                          final noteText = _normalizeNotes(
+                                            item['note'],
+                                          );
+                                          final title =
+                                              (item['title'] ?? '').toString();
+
+                                          final rowContent = Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      12 * s,
+                                                    ),
+                                                child: _orderImage(
+                                                  context,
+                                                  item['image'],
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: _pad(context, 12),
+                                              ),
+                                              Expanded(
+                                                child: Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.center,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Padding(
+                                                        padding:
+                                                            EdgeInsets.symmetric(
+                                                              vertical: _pad(
+                                                                context,
+                                                                4,
+                                                              ),
+                                                            ),
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              title.isNotEmpty
+                                                                  ? title
+                                                                  : 'Item',
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style: TextStyle(
+                                                                fontSize: _sp(
+                                                                  context,
+                                                                  18,
+                                                                ),
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold,
                                                               ),
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 4,
-                                                        ),
-                                                        Text(
-                                                          'Note: ${item['note']}',
-                                                          style: const TextStyle(
-                                                            fontSize: 14,
-                                                            color:
-                                                                Colors.black54,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          height: 8,
-                                                        ),
-                                                        Row(
-                                                          children: [
-                                                            const Text(
-                                                              'Total: ',
-                                                              style: TextStyle(
-                                                                fontSize: 16,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
+                                                            ),
+                                                            SizedBox(
+                                                              height: _pad(
+                                                                context,
+                                                                4,
                                                               ),
                                                             ),
                                                             Text(
-                                                              item['price'],
-                                                              style: const TextStyle(
-                                                                fontSize: 16,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
+                                                              'Notes: $noteText',
+                                                              maxLines: 2,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              style: TextStyle(
+                                                                fontSize: _sp(
+                                                                  context,
+                                                                  14,
+                                                                ),
+                                                                color:
+                                                                    Colors
+                                                                        .black54,
                                                               ),
+                                                            ),
+                                                            SizedBox(
+                                                              height: _pad(
+                                                                context,
+                                                                8,
+                                                              ),
+                                                            ),
+                                                            Row(
+                                                              children: [
+                                                                Text(
+                                                                  'Total: ',
+                                                                  style: TextStyle(
+                                                                    fontSize: _sp(
+                                                                      context,
+                                                                      16,
+                                                                    ),
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                                Text(
+                                                                  (item['price'] ??
+                                                                          '')
+                                                                      .toString(),
+                                                                  style: TextStyle(
+                                                                    fontSize: _sp(
+                                                                      context,
+                                                                      16,
+                                                                    ),
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                              ],
                                                             ),
                                                           ],
                                                         ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 9,
                                                       ),
-                                                  child: Text(
-                                                    _getDisplayStatus(
-                                                      item['status'] ?? '',
                                                     ),
-                                                    style: TextStyle(
-                                                      color: _getStatusColor(
-                                                        item['status'] ?? '',
+                                                    Padding(
+                                                      padding: EdgeInsets.only(
+                                                        top: _pad(context, 9),
                                                       ),
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      fontSize: 14,
+                                                      child: Text(
+                                                        _getDisplayStatus(
+                                                          (item['status'] ?? '')
+                                                              .toString(),
+                                                        ),
+                                                        style: TextStyle(
+                                                          color: _getStatusColor(
+                                                            (item['status'] ??
+                                                                    '')
+                                                                .toString(),
+                                                          ),
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                          fontSize: _sp(
+                                                            context,
+                                                            14,
+                                                          ),
+                                                        ),
+                                                      ),
                                                     ),
-                                                  ),
+                                                  ],
                                                 ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      );
+                                              ),
+                                            ],
+                                          );
 
-                                      return GestureDetector(
-                                        onTap: () {
-                                          // Pass the order's product ID to the next route
-                                          Navigator.pushNamed(
-                                            context,
-                                            AppRoutes.consumertrackview,
-                                            arguments:
-                                                item['id'], // Passing only the orderId
+                                          return GestureDetector(
+                                            onTap: () {
+                                              // Navigate with ORDER id (used by consumertrackview)
+                                              Navigator.pushNamed(
+                                                context,
+                                                AppRoutes.consumertrackview,
+                                                arguments: item['id'],
+                                              );
+                                            },
+                                            child: rowContent,
                                           );
                                         },
-                                        child: rowContent,
-                                      );
-                                    },
-                                  ),
-                        ),
+                                      ),
+                            ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
