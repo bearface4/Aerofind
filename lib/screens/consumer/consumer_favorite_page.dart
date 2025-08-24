@@ -71,19 +71,23 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
         final data = json.decode(response.body);
 
         for (var fav in data) {
+          final product = fav['product'] ?? {};
+          final seller = product['seller'] ?? {};
+          final storeName = seller['store_name'];
           debugPrint("---- FAVORITE ITEM ----");
           debugPrint("Favorite ID: ${fav['id']}");
           debugPrint("Product ID: ${fav['product_id']}");
-          debugPrint("Name: ${fav['product']?['name']}");
-          debugPrint("Price: ${fav['product']?['price']}");
-          debugPrint("Description: ${fav['product']?['description']}");
-          debugPrint("Stocks: ${fav['product']?['stocks']}");
-          debugPrint("Seller ID: ${fav['product']?['seller_id']}");
-          debugPrint("Average Rating: ${fav['product']?['average_rating']}");
-          debugPrint("Rating Count: ${fav['product']?['rating_count']}");
-          debugPrint("Image URL: ${fav['product']?['image_url']}");
+          debugPrint("Name: ${product['name']}");
+          debugPrint("Price: ${product['price']}");
+          debugPrint("Description: ${product['description']}");
+          debugPrint("Stocks: ${product['stocks']}");
+          debugPrint("Seller ID: ${product['seller_id']}");
+          debugPrint("Store Name (nested): $storeName");
+          debugPrint("Average Rating: ${product['average_rating']}");
+          debugPrint("Rating Count: ${product['rating_count']}");
+          debugPrint("Image URL: ${product['image_url']}");
           debugPrint(
-            "Categories: ${fav['product']?['categories']?.join(', ') ?? ''}",
+            "Categories: ${(product['categories'] as List?)?.join(', ') ?? ''}",
           );
         }
 
@@ -128,8 +132,8 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Removed from favorites.'),
+          const SnackBar(
+            content: Text('Removed from favorites.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -276,6 +280,9 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                       itemBuilder: (context, index) {
                         final fav = favorites[index];
                         final product = fav['product'] ?? {};
+                        final seller = product['seller'] ?? {};
+                        final String storeName =
+                            (seller['store_name'] ?? '').toString();
 
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,7 +320,7 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            "Seller ID: ${product['seller_id'] ?? ''}",
+                                            "${storeName.isNotEmpty ? storeName : 'N/A'}",
                                             style: const TextStyle(
                                               fontSize: 14,
                                               color: Colors.black54,
