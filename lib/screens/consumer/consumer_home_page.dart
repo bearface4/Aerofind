@@ -374,16 +374,13 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             : double.tryParse('${product['price']}') ?? 0.0;
     const int qty = 1;
     final double subtotal = price * qty;
-    // Prefer per-item fee parsed from seller.delivery_fee; fallback to 0.0
     final double perItemFee =
         (product['delivery_fee'] is num)
             ? (product['delivery_fee'] as num).toDouble()
             : double.tryParse('${product['delivery_fee']}') ?? 0.0;
-    final double deliveryFee = perItemFee;
-    final double total = subtotal + deliveryFee;
+    final double total = subtotal + perItemFee;
 
-    // Build a cart-like items list so checkout summary can render uniformly
-    final List<Map<String, dynamic>> items = [
+    final items = [
       {
         'id': product['id'],
         'quantity': qty,
@@ -397,9 +394,13 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     ];
 
     return {
+      // --- new flags to make Checkout logic trivial ---
+      'buyNow': true,
+      'product_id': product['id'],
+
       'items': items,
       'subtotal': subtotal,
-      'deliveryFee': deliveryFee,
+      'deliveryFee': perItemFee,
       'total': total,
     };
   }

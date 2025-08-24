@@ -608,6 +608,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                                   context,
                                   AppRoutes.consumercheckout,
                                   arguments: {
+                                    'fromCart': true,
                                     'items': cartItems,
                                     'subtotal': subTotal,
                                     'deliveryFee': deliveryFee,

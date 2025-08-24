@@ -25,11 +25,17 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
   List<Map<String, dynamic>> _addresses = [];
   int? _selectedAddressIndex;
 
-  // Arguments from Cart page
+  // Arguments from Home/Cart
   List<dynamic> _cartItems = [];
   double _argSubtotal = 0.0;
   double _argDeliveryFee = 0.0;
   double _argTotal = 0.0;
+
+  // Buy Now / Cart hints
+  bool _isBuyNow = false; // args['buyNow'] == true
+  int? _argProductId; // args['product_id'] if provided
+  bool _fromCart =
+      false; // args['fromCart'] == true (forces /customer/checkout)
 
   // Guard to read route args only once
   bool _didReadArgs = false;
@@ -49,21 +55,59 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
 
     final route = ModalRoute.of(context);
     final rawArgs = route?.settings.arguments;
+
     if (rawArgs is Map) {
+      // Cart / Buy Now flags
+      try {
+        _fromCart = rawArgs['fromCart'] == true;
+      } catch (_) {
+        _fromCart = false;
+      }
+      try {
+        _isBuyNow = rawArgs['buyNow'] == true;
+      } catch (_) {
+        _isBuyNow = false;
+      }
+      try {
+        final pidDyn = rawArgs['product_id'];
+        if (pidDyn is int) {
+          _argProductId = pidDyn;
+        } else if (pidDyn != null) {
+          _argProductId = int.tryParse(pidDyn.toString());
+        }
+      } catch (_) {
+        _argProductId = null;
+      }
+
+      // Items & totals
       try {
         _cartItems = (rawArgs['items'] as List<dynamic>?) ?? [];
-        _argSubtotal = (rawArgs['subtotal'] ?? 0).toDouble();
-        _argDeliveryFee = (rawArgs['deliveryFee'] ?? 0).toDouble();
-        _argTotal = (rawArgs['total'] ?? 0).toDouble();
-      } catch (e) {
+        _argSubtotal = (rawArgs['subtotal'] ?? 0);
+        if (_argSubtotal is! double) {
+          _argSubtotal =
+              (num.tryParse(_argSubtotal.toString()) ?? 0).toDouble();
+        }
+        _argDeliveryFee = (rawArgs['deliveryFee'] ?? 0);
+        if (_argDeliveryFee is! double) {
+          _argDeliveryFee =
+              (num.tryParse(_argDeliveryFee.toString()) ?? 0).toDouble();
+        }
+        _argTotal = (rawArgs['total'] ?? 0);
+        if (_argTotal is! double) {
+          _argTotal = (num.tryParse(_argTotal.toString()) ?? 0).toDouble();
+        }
+      } catch (_) {
         _cartItems = [];
         _argSubtotal = 0.0;
         _argDeliveryFee = 0.0;
         _argTotal = 0.0;
       }
     }
+
     print(
-      '[CHK][ARGS] items=${_cartItems.length} subtotal=$_argSubtotal deliveryFee=$_argDeliveryFee total=$_argTotal',
+      '[CHK][ARGS] fromCart=$_fromCart buyNow=$_isBuyNow product_id=$_argProductId '
+      'items=${_cartItems.length} subtotal=$_argSubtotal '
+      'deliveryFee=$_argDeliveryFee total=$_argTotal',
     );
   }
 
@@ -203,7 +247,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     await _fetchAddresses();
   }
 
-  // Helpers to read per-item data
+  // ---------- Helpers to read per-item data ----------
   String _productName(dynamic item) {
     try {
       return (item['product']?['name'] ?? '').toString();
@@ -232,7 +276,32 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     }
   }
 
-  // Map UI payment label -> API value
+  // ---------- Single-item vs. Cart flow decision ----------
+  bool _shouldUseSingleItemFlow() {
+    // If explicitly coming from the Cart, ALWAYS use /customer/checkout,
+    // even if the cart happens to have only one item.
+    if (_fromCart) return false;
+
+    // Otherwise, prefer single-item path for Buy Now signals
+    return _isBuyNow || _argProductId != null || _cartItems.length == 1;
+  }
+
+  int? _extractProductIdFromArgs() {
+    // Prefer explicit product_id
+    if (_argProductId != null) return _argProductId;
+
+    // Otherwise read from first cart item: items[0].product.id
+    if (_cartItems.isEmpty) return null;
+    try {
+      final pid = _cartItems.first['product']?['id'];
+      if (pid is int) return pid;
+      return int.tryParse(pid?.toString() ?? '');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Map UI payment label -> API value (kept for /customer/checkout)
   String _mapPaymentMethodForApi(String ui) {
     switch (ui.toLowerCase()) {
       case 'cash on delivery':
@@ -241,6 +310,243 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
         return 'gcash';
       default:
         return 'cash';
+    }
+  }
+
+  /// Resolve customer_id for /customer/orders
+  Future<int?> _getCustomerId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Try ints from prefs
+      final intPrefs = prefs.getInt('customer_id') ?? prefs.getInt('user_id');
+      if (intPrefs != null) return intPrefs;
+
+      // Try strings from prefs
+      final strPrefs =
+          prefs.getString('customer_id') ?? prefs.getString('user_id');
+      if (strPrefs != null) {
+        final parsed = int.tryParse(strPrefs);
+        if (parsed != null) return parsed;
+      }
+
+      // Fallback: decode JWT
+      if (_token != null && _token!.contains('.')) {
+        final parts = _token!.split('.');
+        if (parts.length >= 2) {
+          final String payloadB64Url = parts[1];
+          final padded = payloadB64Url.padRight(
+            payloadB64Url.length + (4 - payloadB64Url.length % 4) % 4,
+            '=',
+          );
+          final normalized = padded.replaceAll('-', '+').replaceAll('_', '/');
+          final payloadJson = utf8.decode(base64.decode(normalized));
+          final payload = jsonDecode(payloadJson);
+
+          final dynamic candidate =
+              payload['customer_id'] ??
+              payload['user_id'] ??
+              payload['id'] ??
+              payload['sub'];
+
+          if (candidate is int) return candidate;
+          return int.tryParse(candidate?.toString() ?? '');
+        }
+      }
+    } catch (e) {
+      print('[ORDERS][CID][ERROR] $e');
+    }
+    return null;
+  }
+
+  // ---------- Existing multi-item/cart checkout ----------
+  Future<void> _placeOrder({
+    required dynamic addressId,
+    required String paymentMethod,
+  }) async {
+    if (_token == null || _token!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing session. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/checkout',
+    );
+
+    // Build payload exactly as required by API
+    final payload = <String, dynamic>{
+      'delivery_address_id': addressId,
+      'payment_method': _mapPaymentMethodForApi(paymentMethod),
+      'notes': 'string',
+    };
+
+    final body = json.encode(payload);
+
+    try {
+      final resp = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+
+      print('[CHK][POST] Status: ${resp.statusCode}');
+      print('[CHK][POST] Body: ${resp.body}');
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Order placed successfully.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.consumermain,
+            (route) => false,
+          );
+        }
+      } else if (resp.statusCode == 401) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Session expired. Please log in again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        String errMsg = 'Failed to place order (${resp.statusCode}).';
+        try {
+          final d = jsonDecode(resp.body);
+          if (d is Map && d['message'] is String) {
+            errMsg = d['message'];
+          }
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errMsg), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      print('[CHK][POST][ERROR] $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error while placing order.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ---------- New: single-item /customer/orders ----------
+  Future<void> _placeSingleItemOrder() async {
+    if (_token == null || _token!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing session. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final productId = _extractProductIdFromArgs();
+    if (productId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No product to order.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final customerId = await _getCustomerId();
+    if (customerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot resolve customer ID.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.parse('https://aerofind-api.onrender.com/customer/orders');
+    final payload = {'product_id': productId, 'customer_id': customerId};
+
+    print('[ORDERS][POST] $payload');
+
+    try {
+      final resp = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(payload),
+      );
+
+      print('[ORDERS][POST] Status: ${resp.statusCode}');
+      print('[ORDERS][POST] Body: ${resp.body}');
+
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Order placed successfully.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.consumermain,
+            (route) => false,
+          );
+        }
+      } else if (resp.statusCode == 401) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Session expired. Please log in again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        String err = 'Failed to place order (${resp.statusCode}).';
+        try {
+          final d = jsonDecode(resp.body);
+          if (d is Map && d['message'] is String) err = d['message'];
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(err), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      print('[ORDERS][POST][ERROR] $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error while placing order.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -359,6 +665,13 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () async {
+                        // Branch: single-item vs. multi-item
+                        if (_shouldUseSingleItemFlow()) {
+                          await _placeSingleItemOrder();
+                          return;
+                        }
+
+                        // Multi-item/cart checkout requires address + payment
                         if (_selectedAddressIndex == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -512,97 +825,6 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                 ),
       ),
     );
-  }
-
-  Future<void> _placeOrder({
-    required dynamic addressId,
-    required String paymentMethod,
-  }) async {
-    if (_token == null || _token!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Missing session. Please log in again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    final uri = Uri.parse(
-      'https://aerofind-api.onrender.com/customer/checkout',
-    );
-
-    // Build payload exactly as required by API
-    final payload = <String, dynamic>{
-      'delivery_address_id': addressId,
-      'payment_method': _mapPaymentMethodForApi(paymentMethod),
-      'notes': 'string',
-    };
-
-    final body = json.encode(payload);
-
-    try {
-      final resp = await http.post(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $_token',
-          'Content-Type': 'application/json',
-        },
-        body: body,
-      );
-
-      print('[CHK][POST] Status: ${resp.statusCode}');
-      print('[CHK][POST] Body: ${resp.body}');
-
-      if (resp.statusCode == 200 || resp.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Order placed successfully.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          // Navigate to main consumer page and clear all previous routes
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            AppRoutes.consumermain,
-            (route) => false,
-          );
-        }
-      } else if (resp.statusCode == 401) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Session expired. Please log in again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } else {
-        String errMsg = 'Failed to place order (${resp.statusCode}).';
-        try {
-          final d = jsonDecode(resp.body);
-          if (d is Map && d['message'] is String) {
-            errMsg = d['message'];
-          }
-        } catch (_) {}
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errMsg), backgroundColor: Colors.red),
-          );
-        }
-      }
-    } catch (e) {
-      print('[CHK][POST][ERROR] $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Network error while placing order.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   Widget _addAddressButton() {
