@@ -91,6 +91,21 @@ class _SellerHomePageState extends State<SellerHomePage> {
     return '$formattedInt.$decPart';
   }
 
+  // Helper function to capitalize first letter of status
+  String _capitalizeStatus(String status) {
+    if (status.isEmpty) return '—';
+    return status[0].toUpperCase() + status.substring(1).toLowerCase();
+  }
+
+  // Helper function to format note text
+  String _formatNoteText(String note) {
+    final trimmedNote = note.trim();
+    if (trimmedNote.isEmpty || trimmedNote.toLowerCase() == 'string') {
+      return 'No note.';
+    }
+    return trimmedNote;
+  }
+
   // ---------- GET /seller/total-sales ----------
   Future<void> _fetchTotalSales() async {
     if (!mounted) return;
@@ -789,7 +804,8 @@ class _SellerHomePageState extends State<SellerHomePage> {
                   )),
     );
 
-    final noteText = note.trim().isEmpty ? 'none.' : note;
+    // Use the helper function for note formatting
+    final noteText = _formatNoteText(note);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -817,7 +833,9 @@ class _SellerHomePageState extends State<SellerHomePage> {
                       ),
                     ),
                     Text(
-                      status.isNotEmpty ? status : '—',
+                      _capitalizeStatus(
+                        status,
+                      ), // Use the helper function for status formatting
                       style: const TextStyle(
                         color: Color(0xff002366),
                         fontWeight: FontWeight.w500,
