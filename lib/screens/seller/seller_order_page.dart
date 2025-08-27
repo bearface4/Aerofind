@@ -487,6 +487,9 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
     final String notes = (order['notes'] ?? '').toString();
     final String paymentMethod = (order['payment_method'] ?? '').toString();
 
+    // Extract customer_name from the order
+    final String customerName = (order['customer_name'] ?? '').toString();
+
     final String addressLine = (delivery['address_line'] ?? '').toString();
     final String barangay = (delivery['barangay'] ?? '').toString();
     // City intentionally omitted
@@ -505,7 +508,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
         statusRaw == _cCompleted || statusRaw == _cCancelled;
 
     debugPrint(
-      '[ORD] Render order card: id=$orderIdInt status="$statusRaw" stepIdx=$stepIdx updating=$isUpdating',
+      '[ORD] Render order card: id=$orderIdInt status="$statusRaw" stepIdx=$stepIdx updating=$isUpdating customer="$customerName"',
     );
 
     // Determine the dropdown "value" label:
@@ -523,6 +526,18 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Display customer name above delivery address
+          if (customerName.isNotEmpty) ...[
+            Text(
+              customerName,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
           if (address.isNotEmpty) ...[
             Text(address, style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
