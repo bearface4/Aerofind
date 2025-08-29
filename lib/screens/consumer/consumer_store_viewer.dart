@@ -170,12 +170,70 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
     }
   }
 
+  // Helper to extract per-item delivery fee from seller data or store profile
+  num? _asNum(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v;
+    return num.tryParse(v.toString());
+  }
+
+  double _extractDeliveryFee(Map<String, dynamic> product) {
+    // First try to get delivery fee from product's seller data
+    final seller = product['seller'];
+    if (seller is Map) {
+      final val = _asNum(seller['delivery_fee']);
+      if (val != null) return val.toDouble();
+    }
+
+    // Fallback to store profile delivery fee
+    if (storeProfile != null) {
+      final val = _asNum(storeProfile!['delivery_fee']);
+      if (val != null) return val.toDouble();
+    }
+
+    return 0.0;
+  }
+
+  // Build a single-item order summary payload from a product
+  Map<String, dynamic> _singleItemOrderArgs(Map<String, dynamic> product) {
+    final double price =
+        (product['price'] is num)
+            ? (product['price'] as num).toDouble()
+            : double.tryParse('${product['price']}') ?? 0.0;
+    const int qty = 1;
+    final double subtotal = price * qty;
+    final double perItemFee = _extractDeliveryFee(product);
+    final double total = subtotal + perItemFee;
+
+    final items = [
+      {
+        'id': product['id'],
+        'quantity': qty,
+        'product': {
+          'id': product['id'],
+          'name': product['name'],
+          'price': price,
+          'image_url': product['image_url'],
+        },
+      },
+    ];
+
+    return {
+      // --- flags to make Checkout logic use single-item flow ---
+      'buyNow': true,
+      'product_id': product['id'],
+
+      'items': items,
+      'subtotal': subtotal,
+      'deliveryFee': perItemFee,
+      'total': total,
+    };
+  }
+
   void _buyNow(Map<String, dynamic> product) {
-    Navigator.pushNamed(
-      context,
-      AppRoutes.consumercheckout,
-      arguments: {'seller_id': sellerId, 'product': product},
-    );
+    // Build single-item order summary and navigate to checkout
+    final args = _singleItemOrderArgs(product);
+    Navigator.pushNamed(context, AppRoutes.consumercheckout, arguments: args);
   }
 
   @override
