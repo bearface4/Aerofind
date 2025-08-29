@@ -18,6 +18,9 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
   bool hasError = false;
   String? accessToken;
 
+  // Track which favorite is being removed (by favorite ID)
+  int? _removingFavoriteId;
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +116,11 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
     final String url =
         "https://aerofind-api.onrender.com/customer/favorites/$favoriteId";
 
+    // Set loading state for this specific favorite
+    setState(() {
+      _removingFavoriteId = favoriteId;
+    });
+
     try {
       debugPrint("🗑 DELETE $url");
       debugPrint("🔑 Using Access Token: $accessToken");
@@ -131,6 +139,7 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
       if (response.statusCode == 200 || response.statusCode == 204) {
         setState(() {
           favorites.removeWhere((fav) => fav['id'] == favoriteId);
+          _removingFavoriteId = null; // Clear loading state
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,6 +153,10 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
       }
     } catch (e) {
       debugPrint("❌ Error removing favorite: $e");
+      setState(() {
+        _removingFavoriteId = null; // Clear loading state on error
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -157,6 +170,9 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
   }
 
   Future<void> confirmRemoveFavorite(int favoriteId) async {
+    // Don't show dialog if already removing this favorite
+    if (_removingFavoriteId == favoriteId) return;
+
     final shouldRemove = await showDialog<bool>(
       context: context,
       builder:
@@ -305,6 +321,10 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                             (seller['store_name'] ?? '').toString();
                         final int productId = product['id'] ?? 0;
                         final int sellerId = seller['id'] ?? 0;
+                        final int favoriteId = fav['id'] ?? 0;
+
+                        // Check if this specific favorite is being removed
+                        final isRemoving = _removingFavoriteId == favoriteId;
 
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,12 +418,26 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                                     padding: const EdgeInsets.only(top: 9),
                                     child: GestureDetector(
                                       onTap:
-                                          () =>
-                                              confirmRemoveFavorite(fav['id']),
-                                      child: const Icon(
-                                        Icons.favorite,
-                                        color: Color(0xFF002F6C),
-                                      ),
+                                          isRemoving
+                                              ? null
+                                              : () => confirmRemoveFavorite(
+                                                favoriteId,
+                                              ),
+                                      child:
+                                          isRemoving
+                                              ? const SizedBox(
+                                                width: 24,
+                                                height: 24,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Color(0xFF002F6C),
+                                                    ),
+                                              )
+                                              : const Icon(
+                                                Icons.favorite,
+                                                color: Color(0xFF002F6C),
+                                              ),
                                     ),
                                   ),
                                 ],
