@@ -449,36 +449,12 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
                     _buildTextField(
                       controller: _priceController,
                       keyboardType: TextInputType.number,
-                      prefixText: '\u20B1 ',
+                      prefixText: '₱ ',
                     ),
 
                     const SizedBox(height: 16),
-                    _buildLabel('Attach Product Image'),
+                    _buildLabel('Product Image'),
                     const SizedBox(height: 8),
-
-                    // Preview only (no upload)
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Image attachment coming soon (not sent to server).',
-                            ),
-                          ),
-                        );
-                        setState(() {
-                          _assetPreviewPath ??= 'assets/placeholder.png';
-                        });
-                      },
-                      icon: const Icon(Icons.attach_file, color: Colors.white),
-                      label: const Text(
-                        "Attach File",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      style: ElevatedButton.styleFrom(backgroundColor: primary),
-                    ),
-
-                    const SizedBox(height: 12),
                     _imagePreview(),
 
                     const SizedBox(height: 32),
