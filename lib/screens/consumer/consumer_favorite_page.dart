@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerFavoritePage extends StatefulWidget {
   const ConsumerFavoritePage({super.key});
@@ -188,6 +190,24 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
     }
   }
 
+  void _navigateToProductDetails(int productId) {
+    debugPrint("🔗 Navigating to product details with ID: $productId");
+    Navigator.pushNamed(
+      context,
+      AppRoutes.consumeritem,
+      arguments: {'id': productId},
+    );
+  }
+
+  void _navigateToStoreView(int sellerId) {
+    debugPrint("🏪 Navigating to store view with seller ID: $sellerId");
+    Navigator.pushNamed(
+      context,
+      AppRoutes.consumerstoreview,
+      arguments: {'seller_id': sellerId},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -283,18 +303,38 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                         final seller = product['seller'] ?? {};
                         final String storeName =
                             (seller['store_name'] ?? '').toString();
+                        final int productId = product['id'] ?? 0;
+                        final int sellerId = seller['id'] ?? 0;
 
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                product['image_url'] ??
-                                    'https://via.placeholder.com/100',
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
+                            GestureDetector(
+                              onTap: () => _navigateToProductDetails(productId),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  product['image_url'] ??
+                                      'https://via.placeholder.com/100',
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 100,
+                                      height: 100,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(
+                                        Icons.image_not_supported,
+                                        color: Colors.grey,
+                                        size: 50,
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -319,13 +359,27 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                                             ),
                                           ),
                                           const SizedBox(height: 4),
-                                          Text(
-                                            "${storeName.isNotEmpty ? storeName : 'N/A'}",
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.black54,
-                                              decoration:
-                                                  TextDecoration.underline,
+                                          RichText(
+                                            text: TextSpan(
+                                              text:
+                                                  storeName.isNotEmpty
+                                                      ? storeName
+                                                      : 'N/A',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                              ),
+                                              recognizer:
+                                                  TapGestureRecognizer()
+                                                    ..onTap = () {
+                                                      if (sellerId > 0) {
+                                                        _navigateToStoreView(
+                                                          sellerId,
+                                                        );
+                                                      }
+                                                    },
                                             ),
                                           ),
                                           const SizedBox(height: 8),
