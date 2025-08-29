@@ -57,11 +57,16 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
   Uri _productsUri({String? storeType}) {
     const base = 'https://aerofind-api.onrender.com/customer/products';
-    if (storeType == null || storeType.trim().isEmpty) {
-      return Uri.parse(base);
+
+    // Always include is_deleted=FALSE parameter
+    final params = <String, String>{'is_deleted': 'FALSE'};
+
+    // Add store_type if provided
+    if (storeType != null && storeType.trim().isNotEmpty) {
+      params['store_type'] = storeType.trim();
     }
-    final enc = Uri.encodeQueryComponent(storeType);
-    return Uri.parse('$base?store_type=$enc');
+
+    return Uri.parse(base).replace(queryParameters: params);
   }
 
   num? _asNum(dynamic v) {

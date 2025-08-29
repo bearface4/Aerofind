@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
+import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aerofind/routes/app_routes.dart';
 
@@ -16,6 +21,8 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
   bool isEditing = false;
   bool isLoading = true;
   bool isSaving = false;
+  bool isUploadingImage = false;
+  bool isDeletingImage = false;
 
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
@@ -26,6 +33,11 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
   late String originalFirstName;
   late String originalLastName;
   late String originalPhone;
+
+  // Profile picture related
+  File? _selectedProfileImage;
+  String? _profileImageUrl;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -60,6 +72,9 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
           originalLastName = lastNameController.text;
           originalPhone = contactController.text;
         });
+
+        // Fetch profile picture after loading profile data
+        await fetchProfilePicture();
       } else {
         debugPrint("Failed to fetch profile: ${response.statusCode}");
       }
@@ -68,6 +83,351 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
     }
 
     setState(() => isLoading = false);
+  }
+
+  Future<void> fetchProfilePicture() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://aerofind-api.onrender.com/customer/profile/picture'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      debugPrint("Profile picture fetch - Status: ${response.statusCode}");
+      debugPrint("Profile picture fetch - Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['image_url'] != null &&
+            data['image_url'].toString().trim().isNotEmpty) {
+          setState(() {
+            _profileImageUrl = data['image_url'];
+          });
+          debugPrint("Profile picture URL loaded: $_profileImageUrl");
+        } else {
+          debugPrint("No profile picture URL found in response");
+        }
+      } else if (response.statusCode == 404) {
+        debugPrint("No profile picture found (404) - using placeholder");
+        // This is normal if user hasn't uploaded a profile picture yet
+        setState(() {
+          _profileImageUrl = null;
+        });
+      } else {
+        debugPrint("Failed to fetch profile picture: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Error fetching profile picture: $e");
+    }
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _selectedProfileImage = File(pickedFile.path);
+        });
+        debugPrint("Image selected: ${pickedFile.path}");
+
+        // Upload the selected image immediately
+        await _uploadProfilePicture();
+      } else {
+        debugPrint("No image selected");
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error selecting image from gallery'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _uploadProfilePicture() async {
+    if (_selectedProfileImage == null) return;
+
+    setState(() => isUploadingImage = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
+      final uri = Uri.parse(
+        'https://aerofind-api.onrender.com/customer/profile/picture',
+      );
+      final request = http.MultipartRequest('POST', uri);
+
+      // Add authorization header
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Get the file path
+      final filePath = _selectedProfileImage!.path;
+      final fileName = path.basename(filePath);
+
+      // Determine MIME type from file
+      String? mimeType = lookupMimeType(filePath);
+
+      debugPrint("File path: $filePath");
+      debugPrint("File name: $fileName");
+      debugPrint("Detected MIME type: $mimeType");
+
+      // Create MultipartFile with correct content type
+      http.MultipartFile multipartFile;
+
+      if (mimeType != null) {
+        // Split MIME type (e.g., "image/jpeg" -> ["image", "jpeg"])
+        final mimeTypeData = mimeType.split('/');
+        if (mimeTypeData.length == 2) {
+          multipartFile = await http.MultipartFile.fromPath(
+            'file', // This field name might need adjustment based on your API
+            filePath,
+            filename: fileName,
+            contentType: MediaType(mimeTypeData[0], mimeTypeData[1]),
+          );
+          debugPrint(
+            "Created MultipartFile with MIME type: ${mimeTypeData[0]}/${mimeTypeData[1]}",
+          );
+        } else {
+          // Fallback if MIME type splitting fails
+          multipartFile = await http.MultipartFile.fromPath(
+            'file',
+            filePath,
+            filename: fileName,
+          );
+          debugPrint(
+            "Created MultipartFile without specific MIME type (split failed)",
+          );
+        }
+      } else {
+        // Fallback for when MIME type detection fails
+        // Assume it's an image based on common extensions
+        final extension = path.extension(filePath).toLowerCase();
+        MediaType? contentType;
+
+        switch (extension) {
+          case '.jpg':
+          case '.jpeg':
+            contentType = MediaType('image', 'jpeg');
+            break;
+          case '.png':
+            contentType = MediaType('image', 'png');
+            break;
+          case '.gif':
+            contentType = MediaType('image', 'gif');
+            break;
+          case '.webp':
+            contentType = MediaType('image', 'webp');
+            break;
+          case '.bmp':
+            contentType = MediaType('image', 'bmp');
+            break;
+          case '.tiff':
+          case '.tif':
+            contentType = MediaType('image', 'tiff');
+            break;
+          default:
+            contentType = MediaType('image', 'jpeg'); // Default fallback
+            break;
+        }
+
+        multipartFile = await http.MultipartFile.fromPath(
+          'file',
+          filePath,
+          filename: fileName,
+          contentType: contentType,
+        );
+        debugPrint(
+          "Created MultipartFile with fallback MIME type: ${contentType.mimeType}",
+        );
+      }
+
+      // Add the file to the request
+      request.files.add(multipartFile);
+
+      debugPrint("Uploading profile picture...");
+      debugPrint("Upload URL: $uri");
+      debugPrint("Request headers: ${request.headers}");
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      debugPrint("Upload response status: ${response.statusCode}");
+      debugPrint("Upload response body: $responseBody");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("Profile picture uploaded successfully");
+
+        // Parse response to get the new image URL if provided
+        try {
+          final data = jsonDecode(responseBody);
+          if (data['image_url'] != null) {
+            setState(() {
+              _profileImageUrl = data['image_url'];
+            });
+          }
+        } catch (e) {
+          debugPrint("Could not parse upload response: $e");
+        }
+
+        // Refresh profile picture from server
+        await fetchProfilePicture();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        debugPrint("Failed to upload profile picture: ${response.statusCode}");
+
+        // Try to parse error message from response
+        String errorMessage =
+            'Failed to upload profile picture (${response.statusCode})';
+        try {
+          final errorData = jsonDecode(responseBody);
+          if (errorData['detail'] != null) {
+            errorMessage = errorData['detail'].toString();
+          }
+        } catch (e) {
+          debugPrint("Could not parse error response: $e");
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error uploading profile picture: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error uploading profile picture'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    setState(() => isUploadingImage = false);
+  }
+
+  Future<void> _deleteProfilePicture() async {
+    setState(() => isDeletingImage = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
+      final response = await http.delete(
+        Uri.parse('https://aerofind-api.onrender.com/customer/profile/picture'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      debugPrint("Delete profile picture - Status: ${response.statusCode}");
+      debugPrint("Delete profile picture - Body: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        debugPrint("Profile picture deleted successfully");
+
+        // Clear local state
+        setState(() {
+          _profileImageUrl = null;
+          _selectedProfileImage = null;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (response.statusCode == 404) {
+        debugPrint("No profile picture to delete (404)");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No profile picture to delete'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        debugPrint("Failed to delete profile picture: ${response.statusCode}");
+
+        // Try to parse error message from response
+        String errorMessage =
+            'Failed to delete profile picture (${response.statusCode})';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['detail'] != null) {
+            errorMessage = errorData['detail'].toString();
+          }
+        } catch (e) {
+          debugPrint("Could not parse error response: $e");
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error deleting profile picture: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error deleting profile picture'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    setState(() => isDeletingImage = false);
+  }
+
+  void _onProfileAvatarTap() {
+    if (isUploadingImage || isDeletingImage) return;
+
+    if (isEditing &&
+        (_profileImageUrl != null || _selectedProfileImage != null)) {
+      // Show delete confirmation dialog when in edit mode and there's a profile picture
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Delete Profile Picture'),
+              content: const Text(
+                'Are you sure you want to delete your profile picture?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _deleteProfilePicture();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+      );
+    } else {
+      // Pick image when not in edit mode or no profile picture exists
+      _pickImageFromGallery();
+    }
   }
 
   Future<void> updateProfile() async {
@@ -151,6 +511,63 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
     );
   }
 
+  Widget _buildProfileAvatar() {
+    final bool hasProfilePicture =
+        _profileImageUrl != null || _selectedProfileImage != null;
+
+    return GestureDetector(
+      onTap: (isUploadingImage || isDeletingImage) ? null : _onProfileAvatarTap,
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 60,
+            backgroundImage: _getProfileImageProvider(),
+            child:
+                (isUploadingImage || isDeletingImage)
+                    ? const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    )
+                    : null,
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Color(0xFF002F6C),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                // Show delete icon when editing and there's a profile picture, otherwise show camera
+                (isEditing && hasProfilePicture)
+                    ? Icons.delete
+                    : Icons.camera_alt,
+                color:
+                    (isEditing && hasProfilePicture)
+                        ? Colors.red
+                        : Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ImageProvider _getProfileImageProvider() {
+    // Priority: selected image > network image > placeholder
+    if (_selectedProfileImage != null) {
+      return FileImage(_selectedProfileImage!);
+    } else if (_profileImageUrl != null &&
+        _profileImageUrl!.trim().isNotEmpty) {
+      return NetworkImage(_profileImageUrl!);
+    } else {
+      return const AssetImage('assets/placeholder.png');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -180,10 +597,7 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
                     right: 0,
                     child: Column(
                       children: [
-                        const CircleAvatar(
-                          radius: 60,
-                          backgroundImage: AssetImage('assets/placeholder.png'),
-                        ),
+                        _buildProfileAvatar(),
                         const SizedBox(height: 16),
                         Text(
                           "${firstNameController.text} ${lastNameController.text}",

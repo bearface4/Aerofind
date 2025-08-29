@@ -24,6 +24,7 @@ dependencies:
   intl: ^0.20.2
   file_picker: ^10.3.2
   mime: ^2.0.0
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
