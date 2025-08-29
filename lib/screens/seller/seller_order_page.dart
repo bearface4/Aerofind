@@ -14,7 +14,7 @@ class SellerOrdersPage extends StatefulWidget {
 class _SellerOrdersPageState extends State<SellerOrdersPage> {
   int selectedStep = 0;
 
-  // UI tab labels (kept as requested)
+  // UI tab labels
   final List<String> steps = const [
     'Order Placed',
     'Preparing Order',
