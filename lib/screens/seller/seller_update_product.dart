@@ -20,6 +20,7 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
 
   String? _token;
   bool _isSaving = false;
+  bool _isDeleting = false;
   bool _isLoading = true; // fetching product details
 
   String? _imageUrl; // network URL (preferred)
@@ -249,6 +250,129 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
         currentPrice != _initialPrice;
   }
 
+  // ===== Delete Confirmation Dialog =====
+  Future<bool?> _showDeleteConfirmation() async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Delete'),
+          content: const Text(
+            'Are you sure you want to delete this product? This action cannot be undone.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ===== Delete Product =====
+  Future<void> _deleteProduct() async {
+    if (_productId == null || _productId == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing product id.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_token == null || _token!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing access token. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show confirmation dialog
+    final bool? confirmed = await _showDeleteConfirmation();
+    if (confirmed != true) return;
+
+    setState(() => _isDeleting = true);
+
+    final endpoint =
+        'https://aerofind-api.onrender.com/seller/products/$_productId';
+    debugPrint('[DEL][DELETE] $endpoint');
+
+    final sw = Stopwatch()..start();
+
+    try {
+      final resp = await http.delete(
+        Uri.parse(endpoint),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      sw.stop();
+      debugPrint(
+        '[DEL][RESP] Status: ${resp.statusCode}  (${sw.elapsedMilliseconds} ms)',
+      );
+      debugPrint('[DEL][RESP] Body: ${_firstK(resp.body, 500)}');
+
+      if (resp.statusCode == 200 || resp.statusCode == 204) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        if (!mounted) return;
+        Navigator.pop(context, true); // signal caller to refresh inventory
+      } else if (resp.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else if (resp.statusCode == 404) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product not found.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete product (${resp.statusCode}).'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      sw.stop();
+      debugPrint(
+        '[DEL][ERROR] DELETE failed after ${sw.elapsedMilliseconds} ms: $e',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network error while deleting product.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
+  }
+
   // ===== Update handler =====
   Future<void> _updateProduct() async {
     final name = _productNameController.text.trim();
@@ -458,11 +582,14 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
                     _imagePreview(),
 
                     const SizedBox(height: 32),
+
+                    // Save Product Button
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: _isSaving ? null : _updateProduct,
+                        onPressed:
+                            _isSaving || _isDeleting ? null : _updateProduct,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primary,
                           shape: RoundedRectangleBorder(
@@ -483,6 +610,43 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
                                 )
                                 : const Text(
                                   'Save Product',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Delete Product Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed:
+                            _isSaving || _isDeleting ? null : _deleteProduct,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child:
+                            _isDeleting
+                                ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                                : const Text(
+                                  'Delete Product',
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: Colors.white,
