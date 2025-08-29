@@ -302,6 +302,60 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     }
   }
 
+  // Helper to extract per-item delivery fee from seller.delivery_fee
+  num? _asNum(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v;
+    return num.tryParse(v.toString());
+  }
+
+  double _extractItemDeliveryFeeFromSeller(Map<String, dynamic> productData) {
+    final seller = productData['seller'];
+    if (seller is Map) {
+      final val = _asNum(seller['delivery_fee']);
+      if (val != null) return val.toDouble();
+    }
+    return 0.0;
+  }
+
+  // Build a single-item order summary payload from current product and quantity
+  Map<String, dynamic> _singleItemOrderArgs() {
+    if (productData == null) return {};
+
+    final double price =
+        (productData!['price'] is num)
+            ? (productData!['price'] as num).toDouble()
+            : double.tryParse('${productData!['price']}') ?? 0.0;
+    final int qty = quantity;
+    final double subtotal = price * qty;
+    final double perItemFee = _extractItemDeliveryFeeFromSeller(productData!);
+    final double total = subtotal + perItemFee;
+
+    final items = [
+      {
+        'id': productData!['id'],
+        'quantity': qty,
+        'product': {
+          'id': productData!['id'],
+          'name': productData!['name'],
+          'price': price,
+          'image_url': productData!['image_url'],
+        },
+      },
+    ];
+
+    return {
+      // --- flags to make Checkout logic use single-item flow ---
+      'buyNow': true,
+      'product_id': productData!['id'],
+
+      'items': items,
+      'subtotal': subtotal,
+      'deliveryFee': perItemFee,
+      'total': total,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color primaryColor = const Color(0xFF001F5B);
@@ -544,7 +598,15 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // Build single-item order summary and navigate to checkout
+                        final args = _singleItemOrderArgs();
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.consumercheckout,
+                          arguments: args,
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
