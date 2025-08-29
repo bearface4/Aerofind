@@ -195,7 +195,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
                           textAlign: TextAlign.center,
                           keyboardType:
                               TextInputType.text, // allow letters & numbers
-                          textCapitalization: TextCapitalization.characters,
+                          textCapitalization: TextCapitalization.none,
                           maxLength: 1, // only 1 char per box
                           style: const TextStyle(
                             fontSize: 24,
