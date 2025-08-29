@@ -30,6 +30,10 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
   String? _customerEmail;
   String? _customerName; // Concatenated from profile
 
+  // Loading states for async operations
+  bool _isPerformingFavoriteAction = false;
+  bool _isPerformingCartAction = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -263,12 +267,28 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     }
   }
 
-  /// Toggle favorite with dialog confirmation for removal
+  /// Toggle favorite with dialog confirmation for removal and loading indicator ONLY after confirmation
   Future<void> toggleFavorite() async {
+    if (_isPerformingFavoriteAction)
+      return; // Prevent multiple simultaneous operations
+
     if (!isFavorite) {
-      await addFavorite();
+      // Add to favorites - show loading immediately
+      setState(() {
+        _isPerformingFavoriteAction = true;
+      });
+
+      try {
+        await addFavorite();
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isPerformingFavoriteAction = false;
+          });
+        }
+      }
     } else {
-      // Show confirmation dialog
+      // Remove from favorites - show confirmation dialog first
       final confirm = await showDialog<bool>(
         context: context,
         builder:
@@ -296,8 +316,42 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               ],
             ),
       );
+
+      // Only show loading indicator AFTER user confirms removal
       if (confirm == true) {
-        await removeFavorite();
+        setState(() {
+          _isPerformingFavoriteAction = true;
+        });
+
+        try {
+          await removeFavorite();
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isPerformingFavoriteAction = false;
+            });
+          }
+        }
+      }
+    }
+  }
+
+  /// Add to cart with loading indicator
+  Future<void> performAddToCart() async {
+    if (_isPerformingCartAction)
+      return; // Prevent multiple simultaneous operations
+
+    setState(() {
+      _isPerformingCartAction = true;
+    });
+
+    try {
+      await addToCart();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPerformingCartAction = false;
+        });
       }
     }
   }
@@ -480,14 +534,26 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Favorite button
+                  // Favorite button with loading indicator (only shows after confirmation)
                   GestureDetector(
-                    onTap: toggleFavorite,
-                    child: Icon(
-                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                      size: 22,
-                      color: isFavorite ? primaryColor : Colors.black,
-                    ),
+                    onTap: _isPerformingFavoriteAction ? null : toggleFavorite,
+                    child:
+                        _isPerformingFavoriteAction
+                            ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF001F5B),
+                              ),
+                            )
+                            : Icon(
+                              isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              size: 22,
+                              color: isFavorite ? primaryColor : Colors.black,
+                            ),
                   ),
                 ],
               ),
@@ -623,7 +689,8 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: addToCart,
+                      onPressed:
+                          _isPerformingCartAction ? null : performAddToCart,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: primaryColor,
                         side: BorderSide(color: primaryColor),
@@ -632,7 +699,17 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Add to cart'),
+                      child:
+                          _isPerformingCartAction
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF001F5B),
+                                ),
+                              )
+                              : const Text('Add to cart'),
                     ),
                   ),
                 ],
