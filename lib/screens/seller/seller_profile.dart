@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:aerofind/routes/app_routes.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http_parser/http_parser.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class SellerProfilePage extends StatefulWidget {
   const SellerProfilePage({super.key});
@@ -20,6 +21,7 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
   bool isEditing = false;
   bool isLoading = true;
   bool isSaving = false;
+  bool isLoadingPdf = false;
 
   String _firstK(String s, int k) {
     if (s.length <= k) return s;
@@ -40,6 +42,10 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
   String originalAddress = '';
   String originalStoreType = '';
   String originalDeliveryFee = '';
+
+  // PDF requirements document
+  String? requirementsPdfUrl;
+  int? sellerId;
 
   final List<String> storeTypes = const [
     "Snacks",
@@ -88,6 +94,9 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        // Get seller_id for PDF requirements
+        sellerId = data['id'];
+
         // Normalize delivery_fee
         final feeVal = data['delivery_fee'];
         String normalizedFee;
@@ -124,6 +133,11 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
           originalStoreType = storeType;
           originalDeliveryFee = deliveryFeeController.text;
         });
+
+        // Fetch requirements PDF if seller_id is available
+        if (sellerId != null) {
+          await fetchRequirementsPdf();
+        }
       } else if (response.statusCode == 401) {
         if (!mounted) return;
         Navigator.pushNamedAndRemoveUntil(
@@ -141,6 +155,94 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
     }
 
     if (mounted) setState(() => isLoading = false);
+  }
+
+  Future<void> fetchRequirementsPdf() async {
+    if (sellerId == null) return;
+
+    setState(() => isLoadingPdf = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token') ?? '';
+
+      final response = await http.get(
+        Uri.parse(
+          'https://aerofind-api.onrender.com/storage/document/seller-requirements/$sellerId',
+        ),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      debugPrint('Requirements PDF fetch - Status: ${response.statusCode}');
+      debugPrint('Requirements PDF fetch - Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // Get the raw URL from response
+        final rawUrl = data['pdf_url'] as String?;
+
+        setState(() {
+          if (rawUrl != null && rawUrl.trim().isNotEmpty) {
+            // Clean the URL by removing markdown-style formatting characters
+            String cleanedUrl = rawUrl.trim();
+
+            // Remove square brackets and parentheses: [url]() -> url
+            cleanedUrl = cleanedUrl.replaceAll(RegExp(r'[\[\]()]+'), '');
+
+            // Remove trailing question marks
+            cleanedUrl = cleanedUrl.replaceAll(RegExp(r'\?+$'), '');
+
+            // Ensure the cleaned URL is valid
+            if (cleanedUrl.startsWith('http://') ||
+                cleanedUrl.startsWith('https://')) {
+              requirementsPdfUrl = cleanedUrl;
+              debugPrint(
+                'Requirements PDF URL cleaned and loaded: $requirementsPdfUrl',
+              );
+            } else {
+              requirementsPdfUrl = null;
+              debugPrint('Cleaned URL is not valid: $cleanedUrl');
+            }
+          } else {
+            requirementsPdfUrl = null;
+            debugPrint('Raw PDF URL is null or empty');
+          }
+        });
+      } else if (response.statusCode == 404) {
+        debugPrint('No requirements document found (404)');
+        setState(() {
+          requirementsPdfUrl = null;
+        });
+      } else {
+        debugPrint('Failed to fetch requirements PDF: ${response.statusCode}');
+        setState(() {
+          requirementsPdfUrl = null;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching requirements PDF: $e');
+      setState(() {
+        requirementsPdfUrl = null;
+      });
+    }
+
+    if (mounted) setState(() => isLoadingPdf = false);
+  }
+
+  void _openPdfViewer() {
+    if (requirementsPdfUrl != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => PdfViewerPage(
+                pdfUrl: requirementsPdfUrl!,
+                title: 'Requirements Document',
+              ),
+        ),
+      );
+    }
   }
 
   bool _sameFee(String a, String b) {
@@ -459,6 +561,107 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
     }
   }
 
+  Widget _buildRequirementsPdfSection() {
+    if (!isEditing) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(thickness: 1),
+        const SizedBox(height: 12),
+        Text(
+          'Requirements Document',
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (isLoadingPdf)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (requirementsPdfUrl != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xff002366), width: 1),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.blue.shade50,
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.picture_as_pdf,
+                  size: 48,
+                  color: Color(0xff002366),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Requirements Document',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: _openPdfViewer,
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text('Open Document'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff002366),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300, width: 1),
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.shade100,
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.description_outlined,
+                  size: 48,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No requirements document found',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bannerWidget =
@@ -639,6 +842,7 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
                         deliveryFeeController,
                       ),
                       _buildReadOnlyField('Email Address', emailController),
+                      _buildRequirementsPdfSection(),
                     ],
                   ),
                 )
@@ -820,6 +1024,42 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// PDF Viewer Page
+class PdfViewerPage extends StatelessWidget {
+  final String pdfUrl;
+  final String title;
+
+  const PdfViewerPage({Key? key, required this.pdfUrl, required this.title})
+    : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(
+          title,
+          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: const Color(0xff002366),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: SfPdfViewer.network(
+        pdfUrl,
+        onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to load PDF: ${details.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        },
+      ),
     );
   }
 }
