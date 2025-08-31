@@ -559,7 +559,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
               ),
               const SizedBox(height: 6),
 
-              // Vendor Section
+              // Vendor Section - FIXED: Access store_name from seller object
               GestureDetector(
                 onTap: () {
                   Navigator.pushNamed(
@@ -571,7 +571,10 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
                 child: Row(
                   children: [
                     Text(
-                      productData!['store_name'] ?? 'View Store',
+                      productData!['seller'] != null &&
+                              productData!['seller']['store_name'] != null
+                          ? productData!['seller']['store_name']
+                          : 'View Store',
                       style: const TextStyle(
                         fontSize: 13,
                         color: Colors.grey,
