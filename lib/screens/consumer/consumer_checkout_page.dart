@@ -382,7 +382,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     final payload = <String, dynamic>{
       'delivery_address_id': addressId,
       'payment_method': _mapPaymentMethodForApi(paymentMethod),
-      'notes': 'string',
+      'notes': '',
     };
 
     final body = json.encode(payload);
@@ -450,7 +450,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     }
   }
 
-  // ---------- New: single-item /customer/orders ----------
+  // ---------- Updated: single-item /customer/orders with new API format ----------
   Future<void> _placeSingleItemOrder() async {
     if (_token == null || _token!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -473,19 +473,45 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
       return;
     }
 
-    final customerId = await _getCustomerId();
-    if (customerId == null) {
+    // For single item orders, we still need address and payment method
+    if (_selectedAddressIndex == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Cannot resolve customer ID.'),
+          content: Text('Please select a delivery address.'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
+    final selectedAddress = _addresses[_selectedAddressIndex!];
+    final addressId = selectedAddress['id'];
+    if (addressId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid address selected.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Get quantity from first cart item, default to 1
+    int quantity = 1;
+    if (_cartItems.isNotEmpty) {
+      quantity = _quantity(_cartItems.first);
+    }
+
     final uri = Uri.parse('https://aerofind-api.onrender.com/customer/orders');
-    final payload = {'product_id': productId, 'customer_id': customerId};
+
+    // Updated payload to match new API format
+    final payload = {
+      'product_id': productId,
+      'quantity': quantity,
+      'delivery_address_id': addressId,
+      'payment_method': _mapPaymentMethodForApi(selectedPaymentMethod),
+      'notes': '',
+    };
 
     print('[ORDERS][POST] $payload');
 
