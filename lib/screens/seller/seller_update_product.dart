@@ -34,6 +34,14 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
   String? _initialDescription;
   int? _initialStocks;
   num? _initialPrice;
+  String? _initialAvailability;
+
+  // Availability dropdown
+  String _selectedAvailability = 'order-now';
+  final Map<String, String> _availabilityOptions = {
+    'Pre-Order': 'pre-order',
+    'Order Now': 'order-now',
+  };
 
   @override
   void initState() {
@@ -182,6 +190,10 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
         _stockController.text = _toInt(m['stocks']).toString();
         _priceController.text = _toNum(m['price']).toString();
 
+        // Set availability from API response
+        final availability = (m['availability'] ?? 'order-now').toString();
+        _selectedAvailability = availability;
+
         final img = (m['image_url'] ?? m['image'] ?? '').toString().trim();
         _imageUrl = null;
         _assetPreviewPath = null;
@@ -199,11 +211,13 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
         _initialDescription = _descriptionController.text;
         _initialStocks = _toInt(m['stocks']);
         _initialPrice = _toNum(m['price']);
+        _initialAvailability = _selectedAvailability;
 
         debugPrint(
           '[UPD] Prefilled from GET => id=$_productId '
           'name="${_productNameController.text}", price="${_priceController.text}", '
-          'stocks="${_stockController.text}", imageUrl="$_imageUrl", asset="$_assetPreviewPath"',
+          'stocks="${_stockController.text}", availability="$_selectedAvailability", '
+          'imageUrl="$_imageUrl", asset="$_assetPreviewPath"',
         );
       } else if (resp.statusCode == 401) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -247,7 +261,8 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
     return currentName != _initialProductName ||
         currentDescription != _initialDescription ||
         currentStocks != _initialStocks ||
-        currentPrice != _initialPrice;
+        currentPrice != _initialPrice ||
+        _selectedAvailability != _initialAvailability;
   }
 
   // ===== Delete Confirmation Dialog =====
@@ -442,6 +457,7 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
       'price': price,
       'description': description,
       'stocks': stocks,
+      'availability': _selectedAvailability, // Add availability to payload
       'category_ids': <int>[],
     };
 
@@ -574,6 +590,54 @@ class _SellerUpdateProductPageState extends State<SellerUpdateProductPage> {
                       controller: _priceController,
                       keyboardType: TextInputType.number,
                       prefixText: '₱ ',
+                    ),
+
+                    // Add Availability dropdown here
+                    const SizedBox(height: 16),
+                    _buildLabel('Availability'),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: DropdownButton<String>(
+                        value:
+                            _availabilityOptions.entries
+                                .firstWhere(
+                                  (entry) =>
+                                      entry.value == _selectedAvailability,
+                                )
+                                .key,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        items:
+                            _availabilityOptions.keys.map((
+                              String displayValue,
+                            ) {
+                              return DropdownMenuItem<String>(
+                                value: displayValue,
+                                child: Text(
+                                  displayValue,
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              );
+                            }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _selectedAvailability =
+                                  _availabilityOptions[newValue]!;
+                            });
+                          }
+                        },
+                      ),
                     ),
 
                     const SizedBox(height: 16),

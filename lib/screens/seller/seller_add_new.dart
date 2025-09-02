@@ -26,6 +26,13 @@ class _SellerAddProductPageState extends State<SellerAddProductPage> {
   Uint8List? _imageBytes;
   String? _selectedImageName;
 
+  // Availability dropdown
+  String _selectedAvailability = 'order-now';
+  final Map<String, String> _availabilityOptions = {
+    'Pre-Order': 'pre-order',
+    'Order Now': 'order-now',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -215,6 +222,7 @@ class _SellerAddProductPageState extends State<SellerAddProductPage> {
         'price': price,
         'description': description,
         'stocks': stocks,
+        'availability': _selectedAvailability, // Add availability field
         'category_ids': <int>[],
       };
 
@@ -286,6 +294,7 @@ class _SellerAddProductPageState extends State<SellerAddProductPage> {
         setState(() {
           _imageBytes = null;
           _selectedImageName = null;
+          _selectedAvailability = 'order-now'; // Reset to default
         });
 
         if (mounted) Navigator.pop(context, true);
@@ -369,6 +378,47 @@ class _SellerAddProductPageState extends State<SellerAddProductPage> {
               controller: _priceController,
               keyboardType: TextInputType.number,
               prefixText: '₱ ',
+            ),
+
+            // Add Availability dropdown here
+            const SizedBox(height: 16),
+            _buildLabel('Availability'),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: DropdownButton<String>(
+                value:
+                    _availabilityOptions.entries
+                        .firstWhere(
+                          (entry) => entry.value == _selectedAvailability,
+                        )
+                        .key,
+                isExpanded: true,
+                underline: const SizedBox(),
+                items:
+                    _availabilityOptions.keys.map((String displayValue) {
+                      return DropdownMenuItem<String>(
+                        value: displayValue,
+                        child: Text(
+                          displayValue,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      );
+                    }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _selectedAvailability = _availabilityOptions[newValue]!;
+                    });
+                  }
+                },
+              ),
             ),
 
             const SizedBox(height: 16),
