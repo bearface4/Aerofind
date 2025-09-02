@@ -34,6 +34,9 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
   bool _isPerformingFavoriteAction = false;
   bool _isPerformingCartAction = false;
 
+  // Cart items with notes
+  List<Map<String, dynamic>> _cartItems = [];
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -54,6 +57,8 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     await fetchFavoriteStatus(id);
     // Fetch profile for reports
     await fetchCustomerProfile();
+    // Fetch cart items with notes
+    await fetchCartItems();
   }
 
   Future<void> fetchProductDetails(int id) async {
@@ -144,6 +149,42 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
     }
   }
 
+  /// Fetch cart items including notes from the API
+  Future<void> fetchCartItems() async {
+    if (_token == null) return;
+    final url = Uri.parse(
+      'https://aerofind-api.onrender.com/customer/cart/items',
+    );
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final dynamic data = json.decode(response.body);
+        List<dynamic> items = [];
+
+        // Handle both array response and object with items property
+        if (data is List) {
+          items = data;
+        } else if (data is Map<String, dynamic> && data['items'] != null) {
+          items = data['items'] as List;
+        }
+
+        setState(() {
+          _cartItems = items.cast<Map<String, dynamic>>();
+        });
+      } else if (response.statusCode == 401) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      }
+    } catch (e) {
+      print('[CART_ITEMS][ERROR] Failed to fetch cart items: $e');
+    }
+  }
+
   Future<void> addToCart() async {
     if (_token == null || productData == null) return;
     final url = Uri.parse(
@@ -158,7 +199,7 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
       body: json.encode({
         'product_id': productId,
         'quantity': quantity,
-        'note': noteController.text,
+        'notes': noteController.text,
       }),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -170,6 +211,9 @@ class _ConsumerItemDetailsState extends State<ConsumerItemDetails> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.green),
       );
+
+      // Refresh cart items after adding
+      await fetchCartItems();
     } else if (response.statusCode == 401) {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
     } else {
