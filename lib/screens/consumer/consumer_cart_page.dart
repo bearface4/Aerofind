@@ -99,6 +99,21 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     return 0.0;
   }
 
+  // Extract notes from item data
+  String _extractNotes(dynamic item) {
+    try {
+      if (item is Map && item['notes'] != null) {
+        final notes = item['notes'].toString().trim();
+        if (notes.isNotEmpty && notes.toLowerCase() != 'null') {
+          return notes;
+        }
+      }
+    } catch (e) {
+      print('[CART][NOTES][ERROR] Failed to extract notes: $e');
+    }
+    return '';
+  }
+
   Future<void> fetchCartItems() async {
     print('[CART][FETCH] Starting fetchCartItems()');
     try {
@@ -182,6 +197,12 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
           print(
             '[CART][FETCH] Local computed subtotal: ₱${localSubtotal.toStringAsFixed(2)}',
           );
+
+          // Log notes extraction for debugging
+          for (int i = 0; i < items.length; i++) {
+            final notes = _extractNotes(items[i]);
+            print('[CART][FETCH] Item $i notes: "$notes"');
+          }
 
           setState(() {
             cartItems = items;
@@ -459,12 +480,14 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
         final item = cartItems[index];
         final product = item['product'];
         final quantity = item['quantity'] ?? 1;
+        final notes = _extractNotes(item);
 
         return _buildCartItem(
           product['name'] ?? '',
           '₱ ${product['price'].toString()}',
           product['image_url'],
           quantity,
+          notes,
           () => onQuantityChange(index, -1),
           () => onQuantityChange(index, 1),
           imageSide: imageSide,
@@ -704,6 +727,7 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
     String price,
     dynamic imageUrl,
     int quantity,
+    String notes,
     VoidCallback onRemove,
     VoidCallback onAdd, {
     required double imageSide,
@@ -735,37 +759,43 @@ class _ConsumerCartPageState extends State<ConsumerCartPage> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  // Price
+                  Text(
+                    price,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: priceFont,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Notes section
+                  Text(
+                    notes.isEmpty ? 'Notes: No notes' : 'Notes: $notes',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: priceFont - 2,
+                      fontWeight: FontWeight.w300,
+                      color: Colors.grey[600],
+                    ),
+                  ),
                   const SizedBox(height: 8),
+                  // Quantity controls
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // Price grows but can wrap on tiny devices
-                      Expanded(
+                      _quantityButton(Icons.remove, onRemove),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Text(
-                          price,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: priceFont,
-                            fontWeight: FontWeight.w400,
-                          ),
+                          quantity.toString(),
+                          style: const TextStyle(fontSize: 16),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _quantityButton(Icons.remove, onRemove),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              quantity.toString(),
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ),
-                          _quantityButton(Icons.add, onAdd),
-                        ],
-                      ),
+                      _quantityButton(Icons.add, onAdd),
                     ],
                   ),
                 ],
