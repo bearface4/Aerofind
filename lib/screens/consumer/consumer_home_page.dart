@@ -25,6 +25,9 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   // Track selected category title exactly as shown in UI (e.g., "Printing")
   String? _selectedCategoryTitle;
 
+  // Track selected availability filter
+  String? _selectedAvailability;
+
   final List<Map<String, String>> categories = const [
     {'title': 'Snacks', 'image': 'assets/snack.png'},
     {'title': 'Beverages', 'image': 'assets/bev.png'},
@@ -55,7 +58,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     await fetchCartCount();
   }
 
-  Uri _productsUri({String? storeType}) {
+  Uri _productsUri({String? storeType, String? availability}) {
     const base = 'https://aerofind-api.onrender.com/customer/products';
 
     // Always include is_deleted=FALSE parameter
@@ -64,6 +67,11 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     // Add store_type if provided
     if (storeType != null && storeType.trim().isNotEmpty) {
       params['store_type'] = storeType.trim();
+    }
+
+    // Add availability if provided
+    if (availability != null && availability.trim().isNotEmpty) {
+      params['availability'] = availability.trim();
     }
 
     return Uri.parse(base).replace(queryParameters: params);
@@ -85,9 +93,9 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     return 0.0;
   }
 
-  Future<void> fetchProducts({String? storeType}) async {
+  Future<void> fetchProducts({String? storeType, String? availability}) async {
     if (_token == null) return;
-    final uri = _productsUri(storeType: storeType);
+    final uri = _productsUri(storeType: storeType, availability: availability);
     try {
       print('[PRODUCTS] GET $uri');
       print(
@@ -124,6 +132,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 'average_rating': item['average_rating'],
                 'rating_count': item['rating_count'],
                 'categories': item['categories'],
+                'availability': item['availability'], // Add availability field
                 'store_type':
                     (item['seller'] is Map &&
                             (item['seller'] as Map)['store_type'] != null)
@@ -137,7 +146,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         // Debug
         for (final p in fetched) {
           print(
-            '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}, delivery_fee=${p['delivery_fee']}',
+            '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}, availability=${p['availability']}, delivery_fee=${p['delivery_fee']}',
           );
         }
 
@@ -295,6 +304,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             'average_rating': item['average_rating'],
             'rating_count': item['rating_count'],
             'categories': item['categories'] ?? [],
+            'availability': item['availability'], // Add availability field
             'store_type':
                 (item['seller'] is Map &&
                         (item['seller'] as Map)['store_type'] != null)
@@ -420,7 +430,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             )
             : RefreshIndicator(
               onRefresh: () async {
-                await fetchProducts(storeType: _selectedCategoryTitle);
+                await fetchProducts(
+                  storeType: _selectedCategoryTitle,
+                  availability: _selectedAvailability,
+                );
                 await fetchCartCount();
               },
               child: SingleChildScrollView(
@@ -493,7 +506,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
               onChanged: (value) async {
                 if (value.trim().isEmpty) {
                   setState(() => _isLoading = true);
-                  await fetchProducts(storeType: _selectedCategoryTitle);
+                  await fetchProducts(
+                    storeType: _selectedCategoryTitle,
+                    availability: _selectedAvailability,
+                  );
                   await fetchCartCount();
                 }
               },
@@ -555,7 +571,10 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                             _selectedCategoryTitle = newSelection;
                             _isLoading = true;
                           });
-                          await fetchProducts(storeType: newSelection);
+                          await fetchProducts(
+                            storeType: newSelection,
+                            availability: _selectedAvailability,
+                          );
                         },
                         child: Column(
                           children: [
@@ -798,10 +817,11 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   }
 
   void _showFilterModal() {
-    bool orderNowSelected = false;
-    bool preOrderSelected = false;
+    bool orderNowSelected = _selectedAvailability == 'order-now';
+    bool preOrderSelected = _selectedAvailability == 'pre-order';
     String? selectedCategory = _selectedCategoryTitle; // prefill current
     double currentMaxPrice = _currentRange.end; // prefill current
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -844,11 +864,12 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                             // Reset page-level filters
                             setState(() {
                               _selectedCategoryTitle = null;
+                              _selectedAvailability = null;
                               _currentRange = const RangeValues(0, 60000);
                               _isLoading = true;
                             });
-                            // Refetch all products without store_type filter
-                            await fetchProducts(storeType: null);
+                            // Refetch all products without filters
+                            await fetchProducts();
                             if (mounted) Navigator.pop(context);
                           },
                           child: const Text('Reset'),
@@ -1001,14 +1022,24 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
-                          // Commit selection and price range
+                          // Determine availability filter based on button selection
+                          String? availabilityFilter;
+                          if (orderNowSelected) {
+                            availabilityFilter = 'order-now';
+                          } else if (preOrderSelected) {
+                            availabilityFilter = 'pre-order';
+                          }
+
+                          // Commit selection and filters
                           setState(() {
                             _selectedCategoryTitle = selectedCategory;
+                            _selectedAvailability = availabilityFilter;
                             _currentRange = RangeValues(0, currentMaxPrice);
                             _isLoading = true;
                           });
                           await fetchProducts(
                             storeType: _selectedCategoryTitle,
+                            availability: _selectedAvailability,
                           );
                           if (mounted) Navigator.pop(context);
                         },
