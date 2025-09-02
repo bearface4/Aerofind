@@ -821,6 +821,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     bool preOrderSelected = _selectedAvailability == 'pre-order';
     String? selectedCategory = _selectedCategoryTitle; // prefill current
     double currentMaxPrice = _currentRange.end; // prefill current
+    bool isSaveLoading = false; // Moved outside StatefulBuilder
 
     showModalBottomSheet(
       context: context,
@@ -853,25 +854,32 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                           ),
                         ),
                         TextButton(
-                          onPressed: () async {
-                            // Reset local modal selections
-                            setModalState(() {
-                              selectedCategory = null;
-                              currentMaxPrice = 60000; // default show-all
-                              orderNowSelected = false;
-                              preOrderSelected = false;
-                            });
-                            // Reset page-level filters
-                            setState(() {
-                              _selectedCategoryTitle = null;
-                              _selectedAvailability = null;
-                              _currentRange = const RangeValues(0, 60000);
-                              _isLoading = true;
-                            });
-                            // Refetch all products without filters
-                            await fetchProducts();
-                            if (mounted) Navigator.pop(context);
-                          },
+                          onPressed:
+                              isSaveLoading
+                                  ? null
+                                  : () async {
+                                    // Reset local modal selections
+                                    setModalState(() {
+                                      selectedCategory = null;
+                                      currentMaxPrice =
+                                          60000; // default show-all
+                                      orderNowSelected = false;
+                                      preOrderSelected = false;
+                                    });
+                                    // Reset page-level filters
+                                    setState(() {
+                                      _selectedCategoryTitle = null;
+                                      _selectedAvailability = null;
+                                      _currentRange = const RangeValues(
+                                        0,
+                                        60000,
+                                      );
+                                      _isLoading = true;
+                                    });
+                                    // Refetch all products without filters
+                                    await fetchProducts();
+                                    if (mounted) Navigator.pop(context);
+                                  },
                           child: const Text('Reset'),
                         ),
                       ],
@@ -896,11 +904,15 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                               label: Text(title),
                               selected: isSelected,
                               showCheckmark: false,
-                              onSelected: (selected) {
-                                setModalState(() {
-                                  selectedCategory = selected ? title : null;
-                                });
-                              },
+                              onSelected:
+                                  isSaveLoading
+                                      ? null
+                                      : (selected) {
+                                        setModalState(() {
+                                          selectedCategory =
+                                              selected ? title : null;
+                                        });
+                                      },
                               selectedColor: const Color(0xFF002363),
                               backgroundColor: Colors.grey,
                               labelStyle: TextStyle(
@@ -923,12 +935,16 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              setModalState(() {
-                                orderNowSelected = !orderNowSelected;
-                                if (orderNowSelected) preOrderSelected = false;
-                              });
-                            },
+                            onPressed:
+                                isSaveLoading
+                                    ? null
+                                    : () {
+                                      setModalState(() {
+                                        orderNowSelected = !orderNowSelected;
+                                        if (orderNowSelected)
+                                          preOrderSelected = false;
+                                      });
+                                    },
                             style: ElevatedButton.styleFrom(
                               backgroundColor:
                                   orderNowSelected
@@ -953,12 +969,16 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              setModalState(() {
-                                preOrderSelected = !preOrderSelected;
-                                if (preOrderSelected) orderNowSelected = false;
-                              });
-                            },
+                            onPressed:
+                                isSaveLoading
+                                    ? null
+                                    : () {
+                                      setModalState(() {
+                                        preOrderSelected = !preOrderSelected;
+                                        if (preOrderSelected)
+                                          orderNowSelected = false;
+                                      });
+                                    },
                             style: ElevatedButton.styleFrom(
                               backgroundColor:
                                   preOrderSelected
@@ -1005,11 +1025,14 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                             label: '₱${currentMaxPrice.toInt()}',
                             activeColor: const Color(0xFF002363),
                             inactiveColor: Colors.grey,
-                            onChanged: (value) {
-                              setModalState(() {
-                                currentMaxPrice = value;
-                              });
-                            },
+                            onChanged:
+                                isSaveLoading
+                                    ? null
+                                    : (value) {
+                                      setModalState(() {
+                                        currentMaxPrice = value;
+                                      });
+                                    },
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1020,41 +1043,80 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          // Determine availability filter based on button selection
-                          String? availabilityFilter;
-                          if (orderNowSelected) {
-                            availabilityFilter = 'order-now';
-                          } else if (preOrderSelected) {
-                            availabilityFilter = 'pre-order';
-                          }
+                      height: 48, // Fixed height to prevent button size change
+                      child:
+                          isSaveLoading
+                              ? Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF002363),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                              : ElevatedButton(
+                                onPressed: () async {
+                                  // Set loading state
+                                  setModalState(() {
+                                    isSaveLoading = true;
+                                  });
 
-                          // Commit selection and filters
-                          setState(() {
-                            _selectedCategoryTitle = selectedCategory;
-                            _selectedAvailability = availabilityFilter;
-                            _currentRange = RangeValues(0, currentMaxPrice);
-                            _isLoading = true;
-                          });
-                          await fetchProducts(
-                            storeType: _selectedCategoryTitle,
-                            availability: _selectedAvailability,
-                          );
-                          if (mounted) Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF002363),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: const Text(
-                          'Save',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
+                                  // Determine availability filter based on button selection
+                                  String? availabilityFilter;
+                                  if (orderNowSelected) {
+                                    availabilityFilter = 'order-now';
+                                  } else if (preOrderSelected) {
+                                    availabilityFilter = 'pre-order';
+                                  }
+
+                                  // Commit selection and filters
+                                  setState(() {
+                                    _selectedCategoryTitle = selectedCategory;
+                                    _selectedAvailability = availabilityFilter;
+                                    _currentRange = RangeValues(
+                                      0,
+                                      currentMaxPrice,
+                                    );
+                                    _isLoading = true;
+                                  });
+
+                                  try {
+                                    await fetchProducts(
+                                      storeType: _selectedCategoryTitle,
+                                      availability: _selectedAvailability,
+                                    );
+                                  } finally {
+                                    // Reset loading state and close modal
+                                    setModalState(() {
+                                      isSaveLoading = false;
+                                    });
+                                    if (mounted) Navigator.pop(context);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF002363),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Save',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
                     ),
                   ],
                 ),
