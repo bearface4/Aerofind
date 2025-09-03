@@ -22,6 +22,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
   String? _token;
   bool _isLoading = true;
   bool _isRefreshing = false;
+  bool _isPlacingOrder = false; // New loading state for order placement
   List<Map<String, dynamic>> _addresses = [];
   int? _selectedAddressIndex;
 
@@ -359,7 +360,7 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
     return null;
   }
 
-  // ---------- Existing multi-item/cart checkout ----------
+  // ---------- Updated multi-item/cart checkout with loading state ----------
   Future<void> _placeOrder({
     required dynamic addressId,
     required String paymentMethod,
@@ -373,6 +374,8 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
       );
       return;
     }
+
+    setState(() => _isPlacingOrder = true);
 
     final uri = Uri.parse(
       'https://aerofind-api.onrender.com/customer/checkout',
@@ -447,10 +450,14 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isPlacingOrder = false);
+      }
     }
   }
 
-  // ---------- Updated: single-item /customer/orders with new API format ----------
+  // ---------- Updated single-item /customer/orders with loading state ----------
   Future<void> _placeSingleItemOrder() async {
     if (_token == null || _token!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -495,6 +502,8 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
       );
       return;
     }
+
+    setState(() => _isPlacingOrder = true);
 
     // Get quantity from first cart item, default to 1
     int quantity = 1;
@@ -572,6 +581,10 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPlacingOrder = false);
       }
     }
   }
@@ -690,53 +703,73 @@ class _ConsumerCheckoutPageState extends State<ConsumerCheckoutPage> {
                   SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        // Branch: single-item vs. multi-item
-                        if (_shouldUseSingleItemFlow()) {
-                          await _placeSingleItemOrder();
-                          return;
-                        }
+                      onPressed:
+                          _isPlacingOrder
+                              ? null
+                              : () async {
+                                // Branch: single-item vs. multi-item
+                                if (_shouldUseSingleItemFlow()) {
+                                  await _placeSingleItemOrder();
+                                  return;
+                                }
 
-                        // Multi-item/cart checkout requires address + payment
-                        if (_selectedAddressIndex == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Please select a delivery address.',
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
+                                // Multi-item/cart checkout requires address + payment
+                                if (_selectedAddressIndex == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please select a delivery address.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
 
-                        final chosen = _addresses[_selectedAddressIndex!];
-                        final addressId = chosen['id'];
+                                final chosen =
+                                    _addresses[_selectedAddressIndex!];
+                                final addressId = chosen['id'];
 
-                        print('[CHK] Confirm Order with:');
-                        print(
-                          '      Address: ${chosen['label']} - ${chosen['address_line']}',
-                        );
-                        print('      Payment: $selectedPaymentMethod');
-                        print(
-                          '      Totals: subtotal=$subtotal delivery=$deliveryFee total=$total',
-                        );
+                                print('[CHK] Confirm Order with:');
+                                print(
+                                  '      Address: ${chosen['label']} - ${chosen['address_line']}',
+                                );
+                                print('      Payment: $selectedPaymentMethod');
+                                print(
+                                  '      Totals: subtotal=$subtotal delivery=$deliveryFee total=$total',
+                                );
 
-                        await _placeOrder(
-                          addressId: addressId,
-                          paymentMethod: selectedPaymentMethod,
-                        );
-                      },
+                                await _placeOrder(
+                                  addressId: addressId,
+                                  paymentMethod: selectedPaymentMethod,
+                                );
+                              },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
+                        backgroundColor:
+                            _isPlacingOrder ? Colors.grey : primaryColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
-                        'Confirm Order',
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
+                      child:
+                          _isPlacingOrder
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Text(
+                                'Confirm Order',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
                     ),
                   ),
                 ],
