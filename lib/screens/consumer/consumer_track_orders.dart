@@ -40,6 +40,35 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
   double _sp(BuildContext context, double base) => base * _scale(context);
   double _pad(BuildContext context, double base) => base * _scale(context);
 
+  // ---------- Order sorting helper ----------
+  int _getStatusPriority(String status) {
+    // Lower numbers = higher priority (appear at top)
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 1;
+      case 'processing':
+        return 2;
+      case 'ready':
+        return 3;
+      case 'ongoing':
+        return 4;
+      case 'completed':
+        return 5;
+      case 'cancelled':
+        return 6;
+      default:
+        return 99; // Unknown statuses go to bottom
+    }
+  }
+
+  void _sortOrdersByStatus() {
+    orders.sort((a, b) {
+      final statusA = (a['status'] ?? '').toString();
+      final statusB = (b['status'] ?? '').toString();
+      return _getStatusPriority(statusA).compareTo(_getStatusPriority(statusB));
+    });
+  }
+
   Future<void> _fetchOrders() async {
     setState(() => isLoading = true);
     try {
@@ -82,6 +111,9 @@ class _ConsumerTrackOrdersPageState extends State<ConsumerTrackOrdersPage> {
                       (order['status']?.toLowerCase() ?? '') == 'ongoing',
                 };
               }).toList();
+
+          // Sort orders after mapping
+          _sortOrdersByStatus();
         });
       } else {
         throw Exception("Failed to load orders: ${response.statusCode}");
