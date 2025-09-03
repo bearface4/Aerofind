@@ -1180,7 +1180,8 @@ class _SellerHomePageState extends State<SellerHomePage> {
                   )),
     );
 
-    final stockColor = stock <= 5 ? Colors.red : Colors.black87;
+    // Changed condition from <= 5 to <= 10
+    final stockColor = stock <= 10 ? Colors.red : Colors.black87;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
