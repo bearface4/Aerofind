@@ -236,6 +236,14 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
     Navigator.pushNamed(context, AppRoutes.consumercheckout, arguments: args);
   }
 
+  void _navigateToProductDetails(int productId) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.consumeritem,
+      arguments: {'id': productId},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset =
@@ -327,6 +335,8 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
                               final imageUrl =
                                   (item['image_url'] ?? '') as String;
                               final productId = item['id'] as int;
+                              final stocks = item['stocks'] ?? 0;
+                              final isOutOfStock = stocks == 0;
                               final isAdding = _addingToCart.contains(
                                 productId,
                               );
@@ -338,6 +348,8 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
                                 rating:
                                     (item['average_rating']?.toString() ??
                                         '4.0'),
+                                stocks: stocks,
+                                isOutOfStock: isOutOfStock,
                                 isAddingToCart: isAdding,
                                 onAddToCart:
                                     () => _handleAddToCartTap(
@@ -345,6 +357,8 @@ class _ConsumerStoreViewerState extends State<ConsumerStoreViewer> {
                                       item['name'] as String,
                                     ),
                                 onBuyNow: () => _buyNow(item),
+                                onImageTap:
+                                    () => _navigateToProductDetails(productId),
                               );
                             },
                           ),
@@ -558,9 +572,12 @@ class MenuCard extends StatelessWidget {
   final String name;
   final String price;
   final String rating;
+  final int stocks;
+  final bool isOutOfStock;
   final bool isAddingToCart;
   final VoidCallback onAddToCart;
   final VoidCallback onBuyNow;
+  final VoidCallback onImageTap;
 
   const MenuCard({
     super.key,
@@ -568,46 +585,62 @@ class MenuCard extends StatelessWidget {
     required this.name,
     required this.price,
     required this.rating,
+    required this.stocks,
+    required this.isOutOfStock,
     required this.isAddingToCart,
     required this.onAddToCart,
     required this.onBuyNow,
+    required this.onImageTap,
   });
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildProductImage() {
     final isNetworkImage = imageUrl.startsWith('http');
-    const darkBlue = Color(0xFF002363);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child:
-                  isNetworkImage
-                      ? Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        height: 150,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'assets/placeholder.png',
-                            width: double.infinity,
-                            height: 150,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      )
-                      : Image.asset(
-                        'assets/placeholder.png',
-                        width: double.infinity,
-                        height: 150,
-                        fit: BoxFit.cover,
-                      ),
+    Widget imageWidget = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        children: [
+          isNetworkImage
+              ? Image.network(
+                imageUrl,
+                width: double.infinity,
+                height: 150,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.asset(
+                    'assets/placeholder.png',
+                    width: double.infinity,
+                    height: 150,
+                    fit: BoxFit.cover,
+                  );
+                },
+              )
+              : Image.asset(
+                'assets/placeholder.png',
+                width: double.infinity,
+                height: 150,
+                fit: BoxFit.cover,
+              ),
+          if (isOutOfStock)
+            Container(
+              width: double.infinity,
+              height: 150,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Text(
+                  'No Stocks',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
+          if (!isOutOfStock)
             Positioned(
               bottom: 8,
               right: 8,
@@ -633,22 +666,44 @@ class MenuCard extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
+        ],
+      ),
+    );
+
+    // Only make clickable if in stock
+    if (isOutOfStock) {
+      return imageWidget;
+    } else {
+      return GestureDetector(onTap: onImageTap, child: imageWidget);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const darkBlue = Color(0xFF002363);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildProductImage(),
         const SizedBox(height: 6),
         Text(
           name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: isOutOfStock ? Colors.grey : Colors.black,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           price,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: darkBlue,
+            color: isOutOfStock ? Colors.grey : darkBlue,
           ),
         ),
         const SizedBox(height: 6),
@@ -656,9 +711,10 @@ class MenuCard extends StatelessWidget {
           children: [
             Expanded(
               child: ElevatedButton(
-                onPressed: onBuyNow,
+                onPressed: isOutOfStock ? null : onBuyNow,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff002366),
+                  backgroundColor:
+                      isOutOfStock ? Colors.grey : const Color(0xff002366),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -667,47 +723,49 @@ class MenuCard extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  "Buy Now",
+                  isOutOfStock ? "No Stocks" : "Buy Now",
                   style: GoogleFonts.poppins(fontSize: 13, color: Colors.white),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            // Cart button with loading state
-            GestureDetector(
-              onTap: isAddingToCart ? null : onAddToCart,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: darkBlue,
-                  shape: BoxShape.circle,
-                ),
+            if (!isOutOfStock) ...[
+              const SizedBox(width: 8),
+              // Cart button with loading state
+              GestureDetector(
+                onTap: isAddingToCart ? null : onAddToCart,
                 child: Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(2),
                   decoration: const BoxDecoration(
-                    color: Colors.white,
+                    color: darkBlue,
                     shape: BoxShape.circle,
                   ),
-                  child:
-                      isAddingToCart
-                          ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              color: darkBlue, // dark blue spinner
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child:
+                        isAddingToCart
+                            ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: darkBlue, // dark blue spinner
+                              ),
+                            )
+                            : const Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 16,
+                              color: darkBlue,
                             ),
-                          )
-                          : const Icon(
-                            Icons.shopping_cart_outlined,
-                            size: 16,
-                            color: darkBlue,
-                          ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ],
