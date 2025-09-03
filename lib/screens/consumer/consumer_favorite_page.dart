@@ -224,6 +224,72 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
     );
   }
 
+  Widget _buildProductImage(dynamic product, int productId) {
+    final int stocks = product['stocks'] ?? 0;
+    final bool isOutOfStock = stocks == 0;
+    final String imageUrl =
+        product['image_url'] ?? 'https://via.placeholder.com/100';
+
+    Widget imageWidget = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        children: [
+          Image.network(
+            imageUrl,
+            width: 100,
+            height: 100,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.image_not_supported,
+                  color: Colors.grey,
+                  size: 50,
+                ),
+              );
+            },
+          ),
+          if (isOutOfStock)
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Text(
+                  'No Stocks',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    // Only wrap with GestureDetector if product is in stock
+    if (isOutOfStock) {
+      return imageWidget;
+    } else {
+      return GestureDetector(
+        onTap: () => _navigateToProductDetails(productId),
+        child: imageWidget,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -322,6 +388,8 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                         final int productId = product['id'] ?? 0;
                         final int sellerId = seller['id'] ?? 0;
                         final int favoriteId = fav['id'] ?? 0;
+                        final int stocks = product['stocks'] ?? 0;
+                        final bool isOutOfStock = stocks == 0;
 
                         // Check if this specific favorite is being removed
                         final isRemoving = _removingFavoriteId == favoriteId;
@@ -329,34 +397,7 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            GestureDetector(
-                              onTap: () => _navigateToProductDetails(productId),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  product['image_url'] ??
-                                      'https://via.placeholder.com/100',
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      width: 100,
-                                      height: 100,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[300],
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Icon(
-                                        Icons.image_not_supported,
-                                        color: Colors.grey,
-                                        size: 50,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
+                            _buildProductImage(product, productId),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Row(
@@ -373,9 +414,13 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                                         children: [
                                           Text(
                                             product['name'] ?? '',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
+                                              color:
+                                                  isOutOfStock
+                                                      ? Colors.grey
+                                                      : Colors.black,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -385,9 +430,12 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                                                   storeName.isNotEmpty
                                                       ? storeName
                                                       : 'N/A',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 14,
-                                                color: Colors.grey,
+                                                color:
+                                                    isOutOfStock
+                                                        ? Colors.grey
+                                                        : Colors.grey,
                                                 decoration:
                                                     TextDecoration.underline,
                                               ),
@@ -405,11 +453,27 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
                                           const SizedBox(height: 8),
                                           Text(
                                             "₱ ${product['price']?.toString() ?? ''}",
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
+                                              color:
+                                                  isOutOfStock
+                                                      ? Colors.grey
+                                                      : Colors.black,
                                             ),
                                           ),
+                                          if (isOutOfStock)
+                                            const Padding(
+                                              padding: EdgeInsets.only(top: 4),
+                                              child: Text(
+                                                "Out of Stock",
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ),
