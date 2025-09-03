@@ -445,7 +445,7 @@ class _SellerInventoryPageState extends State<SellerInventoryPage> {
                   'Stocks: $stocks',
                   style: GoogleFonts.inter(
                     fontSize: 13,
-                    color: stocks <= 5 ? Colors.red : Colors.black54,
+                    color: stocks <= 10 ? Colors.red : Colors.black54,
                   ),
                 ),
               ],
