@@ -116,28 +116,34 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
         final fetched =
             data.map<Map<String, dynamic>>((item) {
+              // Access the nested product data if it exists
+              final productData = item['product'] ?? item;
+
               // Extract per-item fee from seller.delivery_fee
               double itemFee = 0.0;
-              if (item is Map<String, dynamic>) {
-                itemFee = _extractItemDeliveryFeeFromSeller(item);
+              if (productData is Map<String, dynamic>) {
+                itemFee = _extractItemDeliveryFeeFromSeller(productData);
               }
+
               return {
-                'id': item['id'],
-                'title': item['name'],
-                'price': item['price'],
-                'image': item['image_url'],
-                'description': item['description'],
-                'stocks': item['stocks'],
-                'seller_id': item['seller_id'],
-                'average_rating': item['average_rating'],
-                'rating_count': item['rating_count'],
-                'categories': item['categories'],
-                'availability': item['availability'], // Add availability field
+                'id': productData['id'],
+                'title': productData['name'],
+                'price': productData['price'],
+                'image': productData['image_url'],
+                'description': productData['description'],
+                'stocks': productData['stocks'],
+                'seller_id': productData['seller_id'],
+                'average_rating': productData['average_rating'],
+                'rating_count': productData['rating_count'],
+                'categories': productData['categories'],
+                'availability':
+                    productData['availability'], // Add availability field
                 'store_type':
-                    (item['seller'] is Map &&
-                            (item['seller'] as Map)['store_type'] != null)
-                        ? (item['seller'] as Map)['store_type']
-                        : item['store_type'],
+                    (productData['seller'] is Map &&
+                            (productData['seller'] as Map)['store_type'] !=
+                                null)
+                        ? (productData['seller'] as Map)['store_type']
+                        : productData['store_type'],
                 // Store the parsed fee on the product
                 'delivery_fee': itemFee,
               };
@@ -146,7 +152,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         // Debug
         for (final p in fetched) {
           print(
-            '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}, availability=${p['availability']}, delivery_fee=${p['delivery_fee']}',
+            '[PRODUCTS] id=${p['id']}, title="${p['title']}", store_type=${p['store_type']}, availability=${p['availability']}, delivery_fee=${p['delivery_fee']}, stocks=${p['stocks']}',
           );
         }
 
@@ -647,36 +653,73 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         runSpacing: 16,
         children:
             products.map((product) {
+              final int stocks = product['stocks'] ?? 0;
+              final bool isOutOfStock = stocks == 0;
+
               return SizedBox(
                 width: cardWidth,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.consumeritem,
-                          arguments: {'id': product['id']},
-                        );
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _productImage(product['image']),
+                    // Conditionally wrap with GestureDetector only if product is in stock
+                    isOutOfStock
+                        ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Stack(
+                            children: [
+                              _productImage(product['image']),
+                              Container(
+                                height: 180,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'Out of Stock',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.consumeritem,
+                              arguments: {'id': product['id']},
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: _productImage(product['image']),
+                          ),
+                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      product['title'],
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isOutOfStock ? Colors.grey : Colors.black,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      product['title'],
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
                       '₱${product['price']}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF002363),
+                        color:
+                            isOutOfStock
+                                ? Colors.grey
+                                : const Color(0xFF002363),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -684,51 +727,61 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              // Build a single-item order summary using item-level delivery fee from seller.delivery_fee
-                              final args = _singleItemOrderArgs(product);
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.consumercheckout,
-                                arguments: args,
-                              );
-                            },
+                            onPressed:
+                                isOutOfStock
+                                    ? null
+                                    : () {
+                                      // Build a single-item order summary using item-level delivery fee from seller.delivery_fee
+                                      final args = _singleItemOrderArgs(
+                                        product,
+                                      );
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.consumercheckout,
+                                        arguments: args,
+                                      );
+                                    },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF002363),
+                              backgroundColor:
+                                  isOutOfStock
+                                      ? Colors.grey
+                                      : const Color(0xFF002363),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            child: const Text(
-                              "Buy Now",
-                              style: TextStyle(color: Colors.white),
+                            child: Text(
+                              isOutOfStock ? "No Stocks" : "Buy Now",
+                              style: const TextStyle(color: Colors.white),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFF002363),
-                              width: 2,
+                        if (!isOutOfStock) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF002363),
+                                width: 2,
+                              ),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.add_shopping_cart,
+                                size: 16,
+                                color: Color(0xFF002363),
+                              ),
+                              onPressed: () {
+                                addToCart(product['id'], product['title']);
+                              },
+                              padding: EdgeInsets.zero,
                             ),
                           ),
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.add_shopping_cart,
-                              size: 16,
-                              color: Color(0xFF002363),
-                            ),
-                            onPressed: () {
-                              addToCart(product['id'], product['title']);
-                            },
-                            padding: EdgeInsets.zero,
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
