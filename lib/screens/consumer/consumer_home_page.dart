@@ -28,6 +28,13 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   // Track selected availability filter
   String? _selectedAvailability;
 
+  // Cache management
+  static const int _cacheDurationMs =
+      5 * 60 * 1000; // 5 minutes in milliseconds
+  DateTime? _lastCacheTime;
+  List<Map<String, dynamic>>? _cachedProducts;
+  bool _isFromPullRefresh = false;
+
   final List<Map<String, String>> categories = const [
     {'title': 'Snacks', 'image': 'assets/snack.png'},
     {'title': 'Beverages', 'image': 'assets/bev.png'},
@@ -93,8 +100,94 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     return 0.0;
   }
 
-  Future<void> fetchProducts({String? storeType, String? availability}) async {
+  // Check if cache is still valid
+  bool _isCacheValid() {
+    if (_lastCacheTime == null || _cachedProducts == null) return false;
+    final now = DateTime.now();
+    final diff = now.difference(_lastCacheTime!).inMilliseconds;
+    return diff < _cacheDurationMs;
+  }
+
+  // Load cached products instantly
+  void _loadCachedProducts() {
+    if (_cachedProducts != null && _cachedProducts!.isNotEmpty) {
+      print('[CACHE] Loading ${_cachedProducts!.length} cached products');
+      setState(() {
+        allProducts = List.from(_cachedProducts!);
+        // Apply current max price cap client-side
+        final capped =
+            _cachedProducts!.where((p) {
+              final price = p['price'];
+              return price is num ? price <= _currentRange.end : false;
+            }).toList();
+        products = capped;
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Save products to cache
+  void _updateCache(List<Map<String, dynamic>> fetchedProducts) {
+    _cachedProducts = List.from(fetchedProducts);
+    _lastCacheTime = DateTime.now();
+    print(
+      '[CACHE] Updated cache with ${fetchedProducts.length} products at ${_lastCacheTime}',
+    );
+  }
+
+  Future<void> fetchProducts({
+    String? storeType,
+    String? availability,
+    bool forceRefresh = false,
+  }) async {
     if (_token == null) return;
+
+    // On first load with no filters, check cache first
+    final bool isInitialLoad = storeType == null && availability == null;
+
+    if (isInitialLoad &&
+        !forceRefresh &&
+        !_isFromPullRefresh &&
+        _isCacheValid()) {
+      print('[CACHE] Using cached products');
+      _loadCachedProducts();
+      // Fetch fresh data in background
+      _fetchProductsFromAPI(
+        storeType: storeType,
+        availability: availability,
+        updateUI: true,
+      );
+      return;
+    } else if (isInitialLoad &&
+        !forceRefresh &&
+        !_isFromPullRefresh &&
+        _cachedProducts != null) {
+      print(
+        '[CACHE] Cache expired, loading cached products first then fetching fresh',
+      );
+      _loadCachedProducts();
+      // Fetch fresh data and update UI
+      await _fetchProductsFromAPI(
+        storeType: storeType,
+        availability: availability,
+        updateUI: true,
+      );
+      return;
+    }
+
+    // For filtered results or force refresh, always fetch from API
+    await _fetchProductsFromAPI(
+      storeType: storeType,
+      availability: availability,
+      updateUI: true,
+    );
+  }
+
+  Future<void> _fetchProductsFromAPI({
+    String? storeType,
+    String? availability,
+    bool updateUI = true,
+  }) async {
     final uri = _productsUri(storeType: storeType, availability: availability);
     try {
       print('[PRODUCTS] GET $uri');
@@ -156,28 +249,39 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           );
         }
 
-        // Apply current max price cap client-side
-        final capped =
-            fetched.where((p) {
-              final price = p['price'];
-              return price is num ? price <= _currentRange.end : false;
-            }).toList();
+        // Update cache only for unfiltered results
+        if (storeType == null && availability == null) {
+          _updateCache(fetched);
+        }
 
-        setState(() {
-          allProducts = List.from(fetched);
-          products = capped;
-          _isLoading = false;
-        });
+        if (updateUI) {
+          // Apply current max price cap client-side
+          final capped =
+              fetched.where((p) {
+                final price = p['price'];
+                return price is num ? price <= _currentRange.end : false;
+              }).toList();
+
+          setState(() {
+            allProducts = List.from(fetched);
+            products = capped;
+            _isLoading = false;
+          });
+        }
       } else if (response.statusCode == 401) {
         print('[PRODUCTS][ERROR] 401 Unauthorized; redirecting to login');
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       } else {
         print('[PRODUCTS][ERROR] Unexpected status ${response.statusCode}');
-        setState(() => _isLoading = false);
+        if (updateUI) {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
       print('[PRODUCTS][ERROR] Exception: $e');
-      setState(() => _isLoading = false);
+      if (updateUI) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -436,11 +540,15 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             )
             : RefreshIndicator(
               onRefresh: () async {
+                print('[REFRESH] Pull-to-refresh triggered');
+                _isFromPullRefresh = true;
                 await fetchProducts(
                   storeType: _selectedCategoryTitle,
                   availability: _selectedAvailability,
+                  forceRefresh: true,
                 );
                 await fetchCartCount();
+                _isFromPullRefresh = false;
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
