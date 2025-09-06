@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:aerofind/routes/app_routes.dart';
 
 class ConsumerTrackViewPage extends StatefulWidget {
   const ConsumerTrackViewPage({super.key});
@@ -106,6 +107,15 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
         final data = jsonDecode(response.body);
         if (!mounted) return;
 
+        // Extract seller_id and store_name for logging and display
+        final sellerId = data['product']?['seller']?['id'];
+        final storeName =
+            data['product']?['seller']?['store_name']?.toString() ?? '';
+
+        debugPrint(
+          '[TRACK] Order #$orderId: seller_id=$sellerId, store_name="$storeName"',
+        );
+
         setState(() {
           orderDetails = data;
 
@@ -137,7 +147,7 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
             steps.add({
               'title': 'Preparing Order',
               'time': null, // DO NOT show a time or dash
-              'desc': 'We’re getting things ready.',
+              'desc': 'Were getting things ready.',
             });
           }
 
@@ -316,7 +326,7 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 6.0),
                       child: Text(
-                        "We hope you’re happy with your order! Please rate your experience and let us know how we can improve.",
+                        "We hope you're happy with your order! Please rate your experience and let us know how we can improve.",
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.black54),
                       ),
@@ -576,6 +586,11 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
     final metaSize = small ? 12.0 : 14.0;
     final totalSize = small ? 16.0 : (compact ? 17.0 : 18.0);
 
+    // Extract store name and seller ID for display and navigation
+    final storeName =
+        orderDetails['product']?['seller']?['store_name']?.toString() ?? '';
+    final sellerId = orderDetails['product']?['seller']?['id'];
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -671,6 +686,33 @@ class _ConsumerTrackViewPageState extends State<ConsumerTrackViewPage> {
                                               fontSize: metaSize,
                                             ),
                                           ),
+                                          // Clickable store name (no "Store:" prefix)
+                                          if (storeName.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            GestureDetector(
+                                              onTap: () {
+                                                if (sellerId != null) {
+                                                  debugPrint(
+                                                    '[TRACK] Navigating to seller profile: seller_id=$sellerId, store_name="$storeName"',
+                                                  );
+                                                  Navigator.pushNamed(
+                                                    context,
+                                                    AppRoutes.seesellerprof,
+                                                    arguments: sellerId,
+                                                  );
+                                                }
+                                              },
+                                              child: Text(
+                                                storeName,
+                                                style: TextStyle(
+                                                  color: Color(0xFF00205B),
+                                                  fontSize: metaSize,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                           const SizedBox(height: 4),
                                           Align(
                                             alignment: Alignment.centerLeft,
