@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:aerofind/routes/app_routes.dart';
 
 class SellerOrdersPage extends StatefulWidget {
   const SellerOrdersPage({super.key});
@@ -237,6 +238,15 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
               final stepIndex = _canonicalToStepIndex(status);
               m['__stepIndex'] = stepIndex;
               m['__isCancelled'] = status.toLowerCase() == _cCancelled;
+
+              // Extract customer_id and log it
+              final customerId = _toInt(m['customer_id']);
+              final orderId = _toInt(m['id']);
+              final customerName = (m['customer_name'] ?? '').toString();
+              debugPrint(
+                '[ORD][CUSTOMER] Order #$orderId: customer_id=$customerId, customer_name="$customerName", status="$status"',
+              );
+
               return m;
             }).toList();
 
@@ -489,8 +499,9 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
     final String notes = (order['notes'] ?? '').toString();
     final String paymentMethod = (order['payment_method'] ?? '').toString();
 
-    // Extract customer_name from the order
+    // Extract customer_name and customer_id from the order
     final String customerName = (order['customer_name'] ?? '').toString();
+    final int customerId = _toInt(order['customer_id']);
 
     final String addressLine = (delivery['address_line'] ?? '').toString();
     final String barangay = (delivery['barangay'] ?? '').toString();
@@ -510,7 +521,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
         statusRaw == _cCompleted || statusRaw == _cCancelled;
 
     debugPrint(
-      '[ORD] Render order card: id=$orderIdInt status="$statusRaw" stepIdx=$stepIdx updating=$isUpdating customer="$customerName"',
+      '[ORD] Render order card: id=$orderIdInt customer_id=$customerId status="$statusRaw" stepIdx=$stepIdx updating=$isUpdating customer="$customerName"',
     );
 
     // Determine the dropdown "value" label:
@@ -528,14 +539,27 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Display customer name above delivery address
+          // Display clickable customer name that navigates to customer profile
           if (customerName.isNotEmpty) ...[
-            Text(
-              customerName,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Colors.black87,
+            GestureDetector(
+              onTap: () {
+                debugPrint(
+                  '[ORD] Navigating to customer profile: customer_id=$customerId, name="$customerName"',
+                );
+                Navigator.pushNamed(
+                  context,
+                  AppRoutes.seecustomerprof,
+                  arguments: customerId,
+                );
+              },
+              child: Text(
+                customerName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: _kActive,
+                  decoration: TextDecoration.underline,
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -651,7 +675,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                               }
 
                               debugPrint(
-                                '[ORD] Request status change: orderId=$orderIdInt '
+                                '[ORD] Request status change: orderId=$orderIdInt customer_id=$customerId '
                                 '"${_canonicalToLabel(oldCanonical)}" -> "$newLabel" (payload="$newStatus")',
                               );
 
@@ -682,7 +706,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
 
                               if (ok) {
                                 debugPrint(
-                                  '[ORD] Status update SUCCESS for orderId=$orderIdInt -> "$newStatus"',
+                                  '[ORD] Status update SUCCESS for orderId=$orderIdInt customer_id=$customerId -> "$newStatus"',
                                 );
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -696,7 +720,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                                 );
                               } else {
                                 debugPrint(
-                                  '[ORD] Status update FAILED for orderId=$orderIdInt (reverted).',
+                                  '[ORD] Status update FAILED for orderId=$orderIdInt customer_id=$customerId (reverted).',
                                 );
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
