@@ -10,6 +10,43 @@ import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:aerofind/routes/app_routes.dart';
 
+class Address {
+  final int id;
+  final String label;
+  final String addressLine;
+  final String barangay;
+  final String city;
+  final bool isDefault;
+
+  Address({
+    required this.id,
+    required this.label,
+    required this.addressLine,
+    required this.barangay,
+    required this.city,
+    required this.isDefault,
+  });
+
+  factory Address.fromJson(Map<String, dynamic> json) {
+    return Address(
+      id: json['id'],
+      label: json['label'] ?? '',
+      addressLine: json['address_line'] ?? '',
+      barangay: json['barangay'] ?? '',
+      city: json['city'] ?? '',
+      isDefault: json['is_default'] ?? false,
+    );
+  }
+
+  String get fullAddress {
+    List<String> parts = [];
+    if (addressLine.isNotEmpty && addressLine != 'N/A') parts.add(addressLine);
+    if (barangay.isNotEmpty && barangay != 'N/A') parts.add(barangay);
+    if (city.isNotEmpty && city != 'N/A') parts.add(city);
+    return parts.isNotEmpty ? parts.join(', ') : 'No address on file';
+  }
+}
+
 class ConsumerProfilePage extends StatefulWidget {
   const ConsumerProfilePage({super.key});
 
@@ -33,6 +70,10 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
   late String originalFirstName;
   late String originalLastName;
   late String originalPhone;
+
+  // Address related
+  List<Address> addresses = [];
+  Address? defaultAddress;
 
   // Profile picture related
   File? _selectedProfileImage;
@@ -61,12 +102,31 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
         final data = jsonDecode(response.body);
         debugPrint("Profile data: $data");
 
+        // Parse addresses
+        if (data['addresses'] != null) {
+          addresses =
+              (data['addresses'] as List)
+                  .map((addr) => Address.fromJson(addr))
+                  .toList();
+
+          // Find default address
+          try {
+            defaultAddress = addresses.firstWhere((addr) => addr.isDefault);
+          } catch (e) {
+            // If no default address found, use the first one if available
+            defaultAddress = addresses.isNotEmpty ? addresses.first : null;
+          }
+        }
+
         setState(() {
           firstNameController.text = data['first_name'] ?? '';
           lastNameController.text = data['last_name'] ?? '';
           contactController.text = data['phone'] ?? '';
           emailController.text = data['email'] ?? '';
-          addressController.text = "No address on file"; // placeholder
+
+          // Set address controller with default address
+          addressController.text =
+              defaultAddress?.fullAddress ?? "No address on file";
 
           originalFirstName = firstNameController.text;
           originalLastName = lastNameController.text;
@@ -716,7 +776,7 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
                                 firstNameController,
                               ),
                               _buildTextField('Last Name', lastNameController),
-                              _buildTextField('Address', addressController),
+                              _buildReadOnlyField('Address', addressController),
                               _buildPhoneField(
                                 'Contact Number',
                                 contactController,
@@ -760,8 +820,8 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
                               const Divider(height: 24),
                               GestureDetector(
                                 onTap: logoutUser,
-                                child: Row(
-                                  children: const [
+                                child: const Row(
+                                  children: [
                                     Icon(
                                       Icons.logout,
                                       color: Color(0xFF002F6C),
@@ -872,6 +932,8 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Colors.grey),
             ),
+            fillColor: Colors.grey[100],
+            filled: true,
           ),
         ),
         const SizedBox(height: 16),
