@@ -36,12 +36,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
         debugPrint(
           '[PROFILE][ERROR] No customer ID provided in route arguments',
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid customer ID.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid customer ID.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         setState(() {
           _isLoading = false;
         });
@@ -69,12 +71,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
 
     if (token == null || token.isEmpty) {
       debugPrint('[PROFILE][ERROR] Missing access token');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Missing access token. Please log in again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Missing access token. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
@@ -132,32 +136,46 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
           _lastNameController.text = data['last_name']?.toString() ?? '';
           _emailController.text = data['email']?.toString() ?? '';
           _phoneController.text = data['phone']?.toString() ?? '';
-          _profileImageUrl = data['profile_pic']?.toString();
+
+          // Handle profile image URL - check for null, empty, or invalid URLs
+          final profileImageUrl = data['profile_image_url']?.toString();
+          _profileImageUrl =
+              (profileImageUrl != null &&
+                      profileImageUrl.isNotEmpty &&
+                      profileImageUrl != 'null')
+                  ? profileImageUrl
+                  : null;
+
           _isLoading = false;
         });
 
         debugPrint(
           '[PROFILE] Profile loaded: ${data['first_name']} ${data['last_name']}',
         );
+        debugPrint('[PROFILE] Profile image URL: $_profileImageUrl');
       } else if (response.statusCode == 401) {
         debugPrint('[PROFILE][ERROR] 401 Unauthorized');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Session expired. Please log in again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Session expired. Please log in again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         setState(() {
           _isLoading = false;
         });
       } else if (response.statusCode == 404) {
         debugPrint('[PROFILE][ERROR] 404 Customer not found');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Customer profile not found.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Customer profile not found.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         setState(() {
           _isLoading = false;
         });
@@ -165,12 +183,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
         debugPrint(
           '[PROFILE][ERROR] Failed to load profile: ${response.statusCode}',
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load profile (${response.statusCode}).'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to load profile (${response.statusCode}).'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         setState(() {
           _isLoading = false;
         });
@@ -180,12 +200,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
       debugPrint(
         '[PROFILE][ERROR] Network error after ${sw.elapsedMilliseconds} ms: $e',
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Network error occurred.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error occurred.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() {
         _isLoading = false;
       });
@@ -205,7 +227,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
           style: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF002F6C),
+            color: const Color(0xFF002F6C),
           ),
         ),
       ),
@@ -236,9 +258,23 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
           radius: 60,
           backgroundColor: Colors.grey.shade300,
           backgroundImage:
-              _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                  ? NetworkImage(_profileImageUrl!)
-                  : const AssetImage('assets/placeholder.png') as ImageProvider,
+              (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
+                  ? NetworkImage(_profileImageUrl!) as ImageProvider
+                  : const AssetImage('assets/placeholder.png'),
+          onBackgroundImageError:
+              (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
+                  ? (exception, stackTrace) {
+                    debugPrint(
+                      '[PROFILE][ERROR] Failed to load profile image: $exception',
+                    );
+                    // Optionally trigger a setState to fallback to placeholder
+                    if (mounted) {
+                      setState(() {
+                        _profileImageUrl = null;
+                      });
+                    }
+                  }
+                  : null,
         ),
         const SizedBox(height: 16),
         Text(
