@@ -135,7 +135,7 @@ class _LoginOtpScreenState extends State<LoginOtpScreen> {
       } else {
         final msg = jsonDecode(response.body)['message'] ?? 'Login failed.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ $msg'), backgroundColor: Colors.red),
+          SnackBar(content: Text('$msg'), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
