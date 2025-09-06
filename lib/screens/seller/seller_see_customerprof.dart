@@ -15,7 +15,6 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
   // Text controllers for customer data (read-only)
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _middleNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
@@ -54,7 +53,6 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _middleNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -132,7 +130,6 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
         setState(() {
           _firstNameController.text = data['first_name']?.toString() ?? '';
           _lastNameController.text = data['last_name']?.toString() ?? '';
-          _middleNameController.text = data['middle_name']?.toString() ?? '';
           _emailController.text = data['email']?.toString() ?? '';
           _phoneController.text = data['phone']?.toString() ?? '';
           _profileImageUrl = data['profile_pic']?.toString();
@@ -297,14 +294,6 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
             label: "Last Name",
             controller: _lastNameController,
             icon: Icons.person_outline,
-          ),
-          const SizedBox(height: 16),
-
-          // Middle Name
-          _buildReadOnlyTextField(
-            label: "Middle Name",
-            controller: _middleNameController,
-            icon: Icons.person_2_outlined,
           ),
           const SizedBox(height: 24),
 
