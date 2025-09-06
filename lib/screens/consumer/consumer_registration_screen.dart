@@ -80,7 +80,7 @@ class _ConsumerRegistrationScreenState
         "address_line": _addressCtrl.text.trim(),
         "barangay": "N/A",
         "city": "N/A",
-        "is_default": false,
+        "is_default": true,
       },
     };
 
