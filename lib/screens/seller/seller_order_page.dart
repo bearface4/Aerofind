@@ -14,12 +14,13 @@ class SellerOrdersPage extends StatefulWidget {
 class _SellerOrdersPageState extends State<SellerOrdersPage> {
   int selectedStep = 0;
 
-  // UI tab labels
+  // Updated UI tab labels - now includes Cancelled
   final List<String> steps = const [
     'Order Placed',
     'Preparing Order',
     'Delivering Order',
     'Delivered',
+    'Cancelled',
   ];
 
   // Dropdown labels (UI + "Cancelled")
@@ -108,7 +109,8 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
         return 2; // Delivering Order (UI; backend calls it "ready")
       case _cCompleted:
         return 3; // Delivered
-      // Cancelled is not part of the 4-step timeline
+      case _cCancelled:
+        return 4; // Cancelled
       default:
         return 0; // fallback
     }
@@ -124,8 +126,11 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
       case 2:
         return _cReady; // Delivering Order (UI)
       case 3:
-      default:
         return _cCompleted; // Delivered
+      case 4:
+        return _cCancelled; // Cancelled
+      default:
+        return _cPending;
     }
   }
 
@@ -391,12 +396,9 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Hide cancelled orders from the 4 tabs
+    // Updated filtering logic - now includes all statuses including cancelled
     final filtered =
         _orders.where((o) {
-          final isCancelled =
-              (o['status'] ?? '').toString().toLowerCase() == _cCancelled;
-          if (isCancelled) return false;
           final idx = (o['__stepIndex'] ?? 0) as int;
           return idx == selectedStep;
         }).toList();
@@ -605,7 +607,8 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                 height: 28,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: _kActive,
+                  color:
+                      stepIdx == 4 ? Colors.red : _kActive, // Red for cancelled
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: DropdownButtonHideUnderline(
@@ -712,8 +715,8 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
                                 value: label,
                                 child: Text(
                                   label,
-                                  style: const TextStyle(
-                                    color: _kActive,
+                                  style: TextStyle(
+                                    color: stepIdx == 4 ? Colors.red : _kActive,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -774,7 +777,7 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
 }
 
 /* =========================
-   Arrow Tabs (Responsive)
+   Arrow Tabs (ALWAYS Scrollable)
    ========================= */
 
 const Color _kActive = Color(0xff002366);
@@ -784,7 +787,8 @@ const double _kArrowOverlap = 18; // how much each tab overlaps the previous one
 const double _kTabHeight = 48;
 const double _kOutline = 1.5;
 const double _kFirstExtraWidth = 6; // slight visual tweak for first tab
-const double _kMinTabWidth = 96; // min width before the strip scrolls
+// FORCE SCROLLING: Make tabs wider than screen can fit
+const double _kForceScrollTabWidth = 140; // Guaranteed to force scrolling
 
 class _ArrowTabs extends StatelessWidget {
   const _ArrowTabs({
@@ -799,64 +803,54 @@ class _ArrowTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        final count = steps.length;
+    final count = steps.length;
 
-        final widthWhenFit = (maxWidth + _kArrowOverlap * (count - 1)) / count;
-        final bool willScroll = widthWhenFit < _kMinTabWidth;
-        final double tabWidth = willScroll ? _kMinTabWidth : widthWhenFit;
+    // Use fixed wide tabs to FORCE horizontal scrolling
+    final tabWidth = _kForceScrollTabWidth;
 
-        final double contentWidth =
-            willScroll
-                ? (count * tabWidth) -
-                    _kArrowOverlap * (count - 1) +
-                    _kFirstExtraWidth
-                : maxWidth;
+    // Calculate total content width - this will exceed screen width
+    final double contentWidth =
+        (count * tabWidth) - _kArrowOverlap * (count - 1) + _kFirstExtraWidth;
 
-        final children = <Widget>[];
-        for (int i = 0; i < count; i++) {
-          final isFirst = i == 0;
-          final isLast = i == count - 1;
-          final left = i * (tabWidth - _kArrowOverlap);
-          children.add(
-            Positioned(
-              left: left,
-              top: 0,
-              child: _ArrowTab(
-                text: steps[i],
-                isActive: i == selectedIndex,
-                isFirst: isFirst,
-                isLast: isLast,
-                width: tabWidth + (isFirst ? _kFirstExtraWidth : 0),
-                height: _kTabHeight,
-                sharpness: _kArrowSharpness,
-                outline: _kOutline,
-                onTap: () => onTap(i),
-              ),
-            ),
-          );
-        }
+    final children = <Widget>[];
+    for (int i = 0; i < count; i++) {
+      final isFirst = i == 0;
+      final isLast = i == count - 1;
+      final left = i * (tabWidth - _kArrowOverlap);
+      children.add(
+        Positioned(
+          left: left,
+          top: 0,
+          child: _ArrowTab(
+            text: steps[i],
+            isActive: i == selectedIndex,
+            isFirst: isFirst,
+            isLast: isLast,
+            isCancelled: i == 4, // Cancelled tab is index 4
+            width: tabWidth + (isFirst ? _kFirstExtraWidth : 0),
+            height: _kTabHeight,
+            sharpness: _kArrowSharpness,
+            outline: _kOutline,
+            onTap: () => onTap(i),
+          ),
+        ),
+      );
+    }
 
-        final strip = SizedBox(
-          height: _kTabHeight,
-          width: contentWidth,
-          child: Stack(children: children),
-        );
+    final strip = SizedBox(
+      height: _kTabHeight,
+      width: contentWidth, // This will be wider than screen
+      child: Stack(children: children),
+    );
 
-        return SizedBox(
-          height: _kTabHeight,
-          child:
-              willScroll
-                  ? SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: strip,
-                  )
-                  : strip,
-        );
-      },
+    // ALWAYS use SingleChildScrollView - no conditional logic
+    return SizedBox(
+      height: _kTabHeight,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        child: strip,
+      ),
     );
   }
 }
@@ -867,6 +861,7 @@ class _ArrowTab extends StatelessWidget {
     required this.isActive,
     required this.isFirst,
     required this.isLast,
+    required this.isCancelled,
     required this.width,
     required this.height,
     required this.sharpness,
@@ -878,6 +873,7 @@ class _ArrowTab extends StatelessWidget {
   final bool isActive;
   final bool isFirst;
   final bool isLast;
+  final bool isCancelled;
   final double width;
   final double height;
   final double sharpness;
@@ -886,13 +882,13 @@ class _ArrowTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double fontSize = (width / 9).clamp(10, 13);
+    final double fontSize = (width / 12).clamp(9, 11);
 
     return GestureDetector(
       onTap: onTap,
       child: Stack(
         children: [
-          // Outer outline
+          // Outer outline (white border)
           ClipPath(
             clipper: ArrowClipper(
               isFirst: isFirst,
@@ -916,21 +912,24 @@ class _ArrowTab extends StatelessWidget {
               child: Container(
                 width: width,
                 height: height,
-                color: isActive ? _kActive : _kInactive,
+                color:
+                    isActive
+                        ? (isCancelled ? Colors.red : _kActive)
+                        : _kInactive,
                 alignment: Alignment.center,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Text(
                     text,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    textScaleFactor: 0.95,
+                    textScaleFactor: 0.9,
                     style: GoogleFonts.inter(
                       fontSize: fontSize,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
-                      height: 1.0,
+                      height: 1.1,
                     ),
                   ),
                 ),
@@ -962,7 +961,7 @@ class ArrowClipper extends CustomClipper<Path> {
     final path = Path();
 
     if (isFirst) {
-      // ▸────
+      // First tab: ▸───── (flat left, arrow right)
       path.moveTo(0, 0);
       path.lineTo(size.width - sharpness, 0);
       path.lineTo(size.width, size.height / 2);
@@ -970,7 +969,7 @@ class ArrowClipper extends CustomClipper<Path> {
       path.lineTo(0, size.height);
       path.close();
     } else if (isLast) {
-      // ────▮  (no arrow tip; flat right) with notch on the left to interlock
+      // Last tab: ◂───▮ (arrow left, flat right)
       path.moveTo(0, 0);
       path.lineTo(size.width, 0);
       path.lineTo(size.width, size.height);
@@ -978,7 +977,7 @@ class ArrowClipper extends CustomClipper<Path> {
       path.lineTo(sharpness, size.height / 2);
       path.close();
     } else {
-      // ◂───▸  (notch on left, tip on right)
+      // Middle tabs: ◂───▸ (arrow left, arrow right)
       path.moveTo(0, 0);
       path.lineTo(size.width - sharpness, 0);
       path.lineTo(size.width, size.height / 2);
