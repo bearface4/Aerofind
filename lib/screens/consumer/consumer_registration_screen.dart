@@ -76,7 +76,7 @@ class _ConsumerRegistrationScreenState
       "email": _emailCtrl.text.trim(),
       "phone": _contactNumberCtrl.text.trim(),
       "address": {
-        "label": "N/A",
+        "label": "Home",
         "address_line": _addressCtrl.text.trim(),
         "barangay": "N/A",
         "city": "N/A",
