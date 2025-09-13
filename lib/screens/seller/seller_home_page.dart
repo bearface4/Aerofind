@@ -551,306 +551,316 @@ class _SellerHomePageState extends State<SellerHomePage> {
     final salesLoading = _isLoadingSales;
     final salesText = salesLoading ? '••••••••' : _totalSalesText;
 
-    return Scaffold(
-      backgroundColor: const Color(0xfff8f8f8),
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: _primary,
-          onRefresh:
-              _refreshAll, // pull-down refresh for Orders, Products, Sales, Top Products
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Blue Card
-                Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Color(0xff002366),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(40),
-                      bottomRight: Radius.circular(40),
+    return PopScope(
+      canPop: false, // Completely disable back navigation
+      onPopInvokedWithResult: (didPop, result) {
+        // Silently prevent back navigation - no messages
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8f8f8),
+        body: SafeArea(
+          child: RefreshIndicator(
+            color: _primary,
+            onRefresh:
+                _refreshAll, // pull-down refresh for Orders, Products, Sales, Top Products
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Blue Card
+                  Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Color(0xff002366),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(40),
+                        bottomRight: Radius.circular(40),
+                      ),
                     ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'AEROFIND',
-                        style: GoogleFonts.inter(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: Column(
-                          children: [
-                            Text(
-                              'Total sales',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            RichText(
-                              text: TextSpan(
-                                children: [
-                                  const TextSpan(
-                                    text: '₱',
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  TextSpan(
-                                    text: salesText, // NEW: dynamic sales
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (salesLoading)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: SizedBox(
-                                  height: 4,
-                                  width: 80,
-                                  child: LinearProgressIndicator(
-                                    color: Colors.white,
-                                    backgroundColor: Colors.white24,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Top Performing Products Title (now dynamic from API)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    'Top performing product/s',
-                    style: GoogleFonts.inter(fontSize: 16, color: Colors.grey),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Dynamic Top Products Content
-                if (_isLoadingTopProducts)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (_topProducts.isEmpty)
-                  Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
-                      vertical: 8,
+                      vertical: 32,
                     ),
-                    child: Text(
-                      'No top products available.',
-                      style: GoogleFonts.inter(color: Colors.black54),
-                    ),
-                  )
-                else
-                  Center(
-                    child:
-                        _topProducts.length == 1
-                            ? _topProductCardDynamic(
-                              imageUrl:
-                                  (_topProducts[0]['image_url'] ?? '')
-                                      .toString(),
-                              name: (_topProducts[0]['name'] ?? '').toString(),
-                              rating:
-                                  _toNum(
-                                    _topProducts[0]['average_rating'],
-                                  ).toDouble(),
-                            )
-                            : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _topProductCardDynamic(
-                                  imageUrl:
-                                      (_topProducts[0]['image_url'] ?? '')
-                                          .toString(),
-                                  name:
-                                      (_topProducts[0]['name'] ?? '')
-                                          .toString(),
-                                  rating:
-                                      _toNum(
-                                        _topProducts[0]['average_rating'],
-                                      ).toDouble(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'AEROFIND',
+                          style: GoogleFonts.inter(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Total sales',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.white70,
                                 ),
-                                if (_topProducts.length > 1) ...[
-                                  const SizedBox(width: 12),
-                                  Container(
-                                    height: 110,
-                                    width: 1,
-                                    color: Colors.grey.shade300,
+                              ),
+                              const SizedBox(height: 5),
+                              RichText(
+                                text: TextSpan(
+                                  children: [
+                                    const TextSpan(
+                                      text: '₱',
+                                      style: TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: salesText, // NEW: dynamic sales
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (salesLoading)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: SizedBox(
+                                    height: 4,
+                                    width: 80,
+                                    child: LinearProgressIndicator(
+                                      color: Colors.white,
+                                      backgroundColor: Colors.white24,
+                                    ),
                                   ),
-                                  const SizedBox(width: 12),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Top Performing Products Title (now dynamic from API)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'Top performing product/s',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Dynamic Top Products Content
+                  if (_isLoadingTopProducts)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_topProducts.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        'No top products available.',
+                        style: GoogleFonts.inter(color: Colors.black54),
+                      ),
+                    )
+                  else
+                    Center(
+                      child:
+                          _topProducts.length == 1
+                              ? _topProductCardDynamic(
+                                imageUrl:
+                                    (_topProducts[0]['image_url'] ?? '')
+                                        .toString(),
+                                name:
+                                    (_topProducts[0]['name'] ?? '').toString(),
+                                rating:
+                                    _toNum(
+                                      _topProducts[0]['average_rating'],
+                                    ).toDouble(),
+                              )
+                              : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   _topProductCardDynamic(
                                     imageUrl:
-                                        (_topProducts[1]['image_url'] ?? '')
+                                        (_topProducts[0]['image_url'] ?? '')
                                             .toString(),
                                     name:
-                                        (_topProducts[1]['name'] ?? '')
+                                        (_topProducts[0]['name'] ?? '')
                                             .toString(),
                                     rating:
                                         _toNum(
-                                          _topProducts[1]['average_rating'],
+                                          _topProducts[0]['average_rating'],
                                         ).toDouble(),
                                   ),
+                                  if (_topProducts.length > 1) ...[
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      height: 110,
+                                      width: 1,
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _topProductCardDynamic(
+                                      imageUrl:
+                                          (_topProducts[1]['image_url'] ?? '')
+                                              .toString(),
+                                      name:
+                                          (_topProducts[1]['name'] ?? '')
+                                              .toString(),
+                                      rating:
+                                          _toNum(
+                                            _topProducts[1]['average_rating'],
+                                          ).toDouble(),
+                                    ),
+                                  ],
                                 ],
-                              ],
-                            ),
+                              ),
+                    ),
+
+                  const SizedBox(height: 15),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Divider(color: Colors.grey),
                   ),
 
-                const SizedBox(height: 15),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
-                  child: Divider(color: Colors.grey),
-                ),
-
-                // Orders header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Orders',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      // View More / View Less toggle, shown only if there are > 2 orders
-                      if (hasOrders && hasExtraOrders)
-                        TextButton(
-                          onPressed: () {
-                            setState(() => _showAllOrders = !_showAllOrders);
-                          },
-                          child: Text(
-                            _showAllOrders ? 'View Less ↑' : 'View More →',
-                            style: const TextStyle(
-                              color: Color(0xff002366),
-                              fontWeight: FontWeight.w500,
-                            ),
+                  // Orders header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Orders',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            color: Colors.grey,
                           ),
                         ),
-                    ],
+                        // View More / View Less toggle, shown only if there are > 2 orders
+                        if (hasOrders && hasExtraOrders)
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _showAllOrders = !_showAllOrders);
+                            },
+                            child: Text(
+                              _showAllOrders ? 'View Less ↑' : 'View More →',
+                              style: const TextStyle(
+                                color: Color(0xff002366),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
+                  const SizedBox(height: 6),
 
-                // Orders content
-                if (_isLoadingOrders)
+                  // Orders content
+                  if (_isLoadingOrders)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (!hasOrders)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        'No orders yet.',
+                        style: GoogleFonts.inter(color: Colors.black54),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: visibleOrders.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, i) {
+                        final o = visibleOrders[i];
+                        return _orderTileDynamic(
+                          imageUrl: (o['image_url'] ?? '').toString(),
+                          items: (o['itemsText'] ?? '').toString(),
+                          note: (o['note'] ?? '').toString(),
+                          status: (o['status'] ?? '').toString(),
+                        );
+                      },
+                    ),
+
+                  const SizedBox(height: 24),
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (!hasOrders)
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Divider(color: Colors.grey),
+                  ),
+
+                  // Stocks (from /seller/products)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 8,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
-                      'No orders yet.',
-                      style: GoogleFonts.inter(color: Colors.black54),
-                    ),
-                  )
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 8),
-                    itemCount: visibleOrders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final o = visibleOrders[i];
-                      return _orderTileDynamic(
-                        imageUrl: (o['image_url'] ?? '').toString(),
-                        items: (o['itemsText'] ?? '').toString(),
-                        note: (o['note'] ?? '').toString(),
-                        status: (o['status'] ?? '').toString(),
-                      );
-                    },
-                  ),
-
-                const SizedBox(height: 24),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
-                  child: Divider(color: Colors.grey),
-                ),
-
-                // Stocks (from /seller/products)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    'Stocks',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: Colors.grey,
+                      'Stocks',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                if (_isLoadingProducts)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (_products.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 8,
+                  if (_isLoadingProducts)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_products.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        'No products yet.',
+                        style: GoogleFonts.inter(color: Colors.black54),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 40),
+                      itemCount: _products.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, i) {
+                        final p = _products[i];
+                        return _stockTileDynamic(
+                          imageUrl: (p['image_url'] ?? '').toString(),
+                          name: (p['name'] ?? '').toString(),
+                          stock: _toInt(p['stocks']),
+                        );
+                      },
                     ),
-                    child: Text(
-                      'No products yet.',
-                      style: GoogleFonts.inter(color: Colors.black54),
-                    ),
-                  )
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 40),
-                    itemCount: _products.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final p = _products[i];
-                      return _stockTileDynamic(
-                        imageUrl: (p['image_url'] ?? '').toString(),
-                        name: (p['name'] ?? '').toString(),
-                        stock: _toInt(p['stocks']),
-                      );
-                    },
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

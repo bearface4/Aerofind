@@ -693,194 +693,213 @@ class _SellerProfilePageState extends State<SellerProfilePage> {
               File(profileImage),
             ); // Handle both network and file images.
 
-    return Scaffold(
-      backgroundColor: const Color(0xfff8f8f8),
-      body: RefreshIndicator(
-        onRefresh: fetchProfile,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  GestureDetector(
-                    onTap:
-                        isEditing
-                            ? null
-                            : _pickAndUploadBannerImage, // Disable image picker in edit mode
-                    child: bannerWidget,
-                  ),
-                  Positioned(
-                    bottom: -50,
-                    child: GestureDetector(
+    return PopScope(
+      canPop: false, // Completely disable back navigation
+      onPopInvokedWithResult: (didPop, result) {
+        // Show message when users try to navigate back
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Use logout button to exit'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8f8f8),
+        body: RefreshIndicator(
+          onRefresh: fetchProfile,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    GestureDetector(
                       onTap:
                           isEditing
                               ? null
-                              : _pickAndUploadProfileImage, // Disable image picker in edit mode
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundImage:
-                            profileImage == 'assets/placeholder.png'
-                                ? AssetImage('assets/placeholder.png')
-                                : avatarProvider,
-                      ),
+                              : _pickAndUploadBannerImage, // Disable image picker in edit mode
+                      child: bannerWidget,
                     ),
-                  ),
-                  // Trash bin for deleting profile image (under the store type text)
-                  if (profileImage != 'assets/placeholder.png' && isEditing)
                     Positioned(
-                      top: 150, // Placed under the store type
-                      left: 0,
-                      right: 0,
-                      child: IconButton(
-                        onPressed: _deleteProfileImage,
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                      ),
-                    ),
-                  // Trash bin for deleting banner image (Bottom-right)
-                  if (bannerImage != 'assets/placeholder.png' && isEditing)
-                    Positioned(
-                      bottom: 10,
-                      right: 10,
-                      child: IconButton(
-                        onPressed: _deleteBannerImage,
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 60),
-              Text(
-                storeNameController.text,
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                storeType,
-                style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton(
-                      onPressed:
-                          isEditing
-                              ? updateProfile
-                              : () {
-                                setState(() => isEditing = true);
-                              },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xff002366),
-                        side: const BorderSide(color: Color(0xff002366)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                      bottom: -50,
+                      child: GestureDetector(
+                        onTap:
+                            isEditing
+                                ? null
+                                : _pickAndUploadProfileImage, // Disable image picker in edit mode
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage:
+                              profileImage == 'assets/placeholder.png'
+                                  ? AssetImage('assets/placeholder.png')
+                                  : avatarProvider,
                         ),
                       ),
-                      child:
-                          isSaving
-                              ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xff002366),
-                                ),
-                              )
-                              : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isEditing ? Icons.save : Icons.edit,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    isEditing ? 'Save' : 'Edit',
-                                    style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
                     ),
+                    // Trash bin for deleting profile image (under the store type text)
+                    if (profileImage != 'assets/placeholder.png' && isEditing)
+                      Positioned(
+                        top: 150, // Placed under the store type
+                        left: 0,
+                        right: 0,
+                        child: IconButton(
+                          onPressed: _deleteProfileImage,
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                        ),
+                      ),
+                    // Trash bin for deleting banner image (Bottom-right)
+                    if (bannerImage != 'assets/placeholder.png' && isEditing)
+                      Positioned(
+                        bottom: 10,
+                        right: 10,
+                        child: IconButton(
+                          onPressed: _deleteBannerImage,
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                        ),
+                      ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 10),
-
-              if (isLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: CircularProgressIndicator(),
-                )
-              else if (isEditing)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
+                const SizedBox(height: 60),
+                Text(
+                  storeNameController.text,
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: Column(
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  storeType,
+                  style: GoogleFonts.inter(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      _buildTextField('Store Name', storeNameController),
-                      _buildDropdown(),
-                      _buildTextField('Address', addressController),
-                      _buildNumberField(
-                        'Delivery Fee (₱)',
-                        deliveryFeeController,
+                      OutlinedButton(
+                        onPressed:
+                            isEditing
+                                ? updateProfile
+                                : () {
+                                  setState(() => isEditing = true);
+                                },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xff002366),
+                          side: const BorderSide(color: Color(0xff002366)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        child:
+                            isSaving
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xff002366),
+                                  ),
+                                )
+                                : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isEditing ? Icons.save : Icons.edit,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      isEditing ? 'Save' : 'Edit',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                       ),
-                      _buildReadOnlyField('Email Address', emailController),
-                      _buildRequirementsPdfSection(),
                     ],
                   ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  child: Column(
-                    children: [
-                      _buildViewField('Address', addressController.text),
-                      const Divider(thickness: 1),
-                      _buildViewField('Contact Number', '0908234405'),
-                      const Divider(thickness: 1),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: logout,
-                          icon: const Icon(
-                            Icons.logout,
-                            color: Color(0xff002366),
-                          ),
-                          label: Text(
-                            'Logout',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xff002366),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                ),
+                const SizedBox(height: 10),
+
+                if (isLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: CircularProgressIndicator(),
+                  )
+                else if (isEditing)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    child: Column(
+                      children: [
+                        _buildTextField('Store Name', storeNameController),
+                        _buildDropdown(),
+                        _buildTextField('Address', addressController),
+                        _buildNumberField(
+                          'Delivery Fee (₱)',
+                          deliveryFeeController,
+                        ),
+                        _buildReadOnlyField('Email Address', emailController),
+                        _buildRequirementsPdfSection(),
+                      ],
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    child: Column(
+                      children: [
+                        _buildViewField('Address', addressController.text),
+                        const Divider(thickness: 1),
+                        _buildViewField('Contact Number', '0908234405'),
+                        const Divider(thickness: 1),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: logout,
+                            icon: const Icon(
+                              Icons.logout,
+                              color: Color(0xff002366),
+                            ),
+                            label: Text(
+                              'Logout',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xff002366),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              const SizedBox(height: 30),
-            ],
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),

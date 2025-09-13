@@ -632,217 +632,242 @@ class _ConsumerProfilePageState extends State<ConsumerProfilePage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: fetchProfile,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  ClipPath(
-                    clipper: DeepArcClipper(),
-                    child: Container(
-                      height: size.height * 0.4,
-                      width: double.infinity,
-                      color: const Color(0xFF002F6C),
+    return PopScope(
+      canPop: false, // This completely disables back button and swipe gestures
+      onPopInvokedWithResult: (didPop, result) {
+        // Optional: Show a message when users try to navigate back
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Use logout button to exit'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: RefreshIndicator(
+          onRefresh: fetchProfile,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipPath(
+                      clipper: DeepArcClipper(),
+                      child: Container(
+                        height: size.height * 0.4,
+                        width: double.infinity,
+                        color: const Color(0xFF002F6C),
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    top: size.height * 0.10,
-                    left: 0,
-                    right: 0,
-                    child: Column(
-                      children: [
-                        _buildProfileAvatar(),
-                        const SizedBox(height: 16),
-                        Text(
-                          "${firstNameController.text} ${lastNameController.text}",
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          emailController.text,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                child:
-                    isLoading
-                        ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.only(top: 50),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                        : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: OutlinedButton.icon(
-                                onPressed:
-                                    isEditing
-                                        ? () {
-                                          if (firstNameController.text !=
-                                                  originalFirstName ||
-                                              lastNameController.text !=
-                                                  originalLastName ||
-                                              contactController.text !=
-                                                  originalPhone) {
-                                            updateProfile();
-                                          } else {
-                                            setState(() {
-                                              isEditing = false;
-                                            });
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'No changes to save',
-                                                ),
-                                                backgroundColor: Colors.grey,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                        : () {
-                                          setState(() {
-                                            isEditing = true;
-                                          });
-                                        },
-                                icon:
-                                    isSaving
-                                        ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFF002F6C),
-                                          ),
-                                        )
-                                        : Icon(
-                                          isEditing ? Icons.save : Icons.edit,
-                                          size: 16,
-                                          color: const Color(0xFF002F6C),
-                                        ),
-                                label:
-                                    isSaving
-                                        ? const Text('')
-                                        : Text(
-                                          isEditing ? 'Save' : 'Edit',
-                                          style: const TextStyle(
-                                            color: Color(0xFF002F6C),
-                                          ),
-                                        ),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: Color(0xFF002F6C),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                ),
-                              ),
+                    Positioned(
+                      top: size.height * 0.10,
+                      left: 0,
+                      right: 0,
+                      child: Column(
+                        children: [
+                          _buildProfileAvatar(),
+                          const SizedBox(height: 16),
+                          Text(
+                            "${firstNameController.text} ${lastNameController.text}",
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
-                            const SizedBox(height: 10),
-                            if (isEditing) ...[
-                              _buildTextField(
-                                'First Name',
-                                firstNameController,
-                              ),
-                              _buildTextField('Last Name', lastNameController),
-                              _buildReadOnlyField('Address', addressController),
-                              _buildPhoneField(
-                                'Contact Number',
-                                contactController,
-                              ),
-                              _buildReadOnlyField(
-                                'Email Address',
-                                emailController,
-                              ),
-                            ] else ...[
-                              const Text(
-                                'Address',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                addressController.text,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const Divider(height: 24),
-                              const Text(
-                                'Contact Number',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                contactController.text,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const Divider(height: 24),
-                              GestureDetector(
-                                onTap: logoutUser,
-                                child: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.logout,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            emailController.text,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  child:
+                      isLoading
+                          ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 50),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                          : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  onPressed:
+                                      isEditing
+                                          ? () {
+                                            if (firstNameController.text !=
+                                                    originalFirstName ||
+                                                lastNameController.text !=
+                                                    originalLastName ||
+                                                contactController.text !=
+                                                    originalPhone) {
+                                              updateProfile();
+                                            } else {
+                                              setState(() {
+                                                isEditing = false;
+                                              });
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'No changes to save',
+                                                  ),
+                                                  backgroundColor: Colors.grey,
+                                                ),
+                                              );
+                                            }
+                                          }
+                                          : () {
+                                            setState(() {
+                                              isEditing = true;
+                                            });
+                                          },
+                                  icon:
+                                      isSaving
+                                          ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFF002F6C),
+                                            ),
+                                          )
+                                          : Icon(
+                                            isEditing ? Icons.save : Icons.edit,
+                                            size: 16,
+                                            color: const Color(0xFF002F6C),
+                                          ),
+                                  label:
+                                      isSaving
+                                          ? const Text('')
+                                          : Text(
+                                            isEditing ? 'Save' : 'Edit',
+                                            style: const TextStyle(
+                                              color: Color(0xFF002F6C),
+                                            ),
+                                          ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
                                       color: Color(0xFF002F6C),
                                     ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Logout',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black,
-                                      ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                  ],
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                  ),
                                 ),
                               ),
+                              const SizedBox(height: 10),
+                              if (isEditing) ...[
+                                _buildTextField(
+                                  'First Name',
+                                  firstNameController,
+                                ),
+                                _buildTextField(
+                                  'Last Name',
+                                  lastNameController,
+                                ),
+                                _buildReadOnlyField(
+                                  'Address',
+                                  addressController,
+                                ),
+                                _buildPhoneField(
+                                  'Contact Number',
+                                  contactController,
+                                ),
+                                _buildReadOnlyField(
+                                  'Email Address',
+                                  emailController,
+                                ),
+                              ] else ...[
+                                const Text(
+                                  'Address',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  addressController.text,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Divider(height: 24),
+                                const Text(
+                                  'Contact Number',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  contactController.text,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Divider(height: 24),
+                                GestureDetector(
+                                  onTap: logoutUser,
+                                  child: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.logout,
+                                        color: Color(0xFF002F6C),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Logout',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-              ),
-            ],
+                          ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

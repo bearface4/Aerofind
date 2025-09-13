@@ -198,156 +198,167 @@ class _SellerInventoryPageState extends State<SellerInventoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xfff8f8f8),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header + Add button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Inventory',
-                    style: GoogleFonts.inter(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: _primary,
+    return PopScope(
+      canPop: false, // Completely disable back navigation
+      onPopInvokedWithResult: (didPop, result) {
+        // Silently prevent back navigation - no messages
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8f8f8),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Header + Add button
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Inventory',
+                      style: GoogleFonts.inter(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: _primary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        debugPrint('[INV][NAV] Go to Add Product');
-                        final created = await Navigator.pushNamed(
-                          context,
-                          AppRoutes.selleradd,
-                        );
-                        debugPrint(
-                          '[INV][NAV] Returned from Add Product => result=$created',
-                        );
-                        if (created == true) {
-                          setState(() => _isLoading = true);
-                          await _fetchProducts();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          debugPrint('[INV][NAV] Go to Add Product');
+                          final created = await Navigator.pushNamed(
+                            context,
+                            AppRoutes.selleradd,
+                          );
+                          debugPrint(
+                            '[INV][NAV] Returned from Add Product => result=$created',
+                          );
+                          if (created == true) {
+                            setState(() => _isLoading = true);
+                            await _fetchProducts();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          "Add new product",
+                          style: TextStyle(fontSize: 16, color: Colors.white),
                         ),
                       ),
-                      child: const Text(
-                        "Add new product",
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Product container with ONLY top-left curved corner
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(52)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 10,
-                      offset: Offset(0, -2),
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Products',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+              ),
 
-                      // Refreshable list/content
-                      Expanded(
-                        child: RefreshIndicator(
-                          color: _primary,
-                          onRefresh: _onRefresh,
-                          child:
-                              _isLoading && !_isRefreshing
-                                  ? ListView(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    children: const [
-                                      SizedBox(height: 160),
-                                      Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                      SizedBox(height: 160),
-                                    ],
-                                  )
-                                  : (_products.isEmpty
-                                      ? ListView(
-                                        physics:
-                                            const AlwaysScrollableScrollPhysics(),
-                                        children: [
-                                          const SizedBox(height: 140),
-                                          Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(
-                                                Icons.inventory_2_outlined,
-                                                size: 48,
-                                                color: Colors.black26,
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'No products yet.',
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.black54,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 120),
-                                            ],
-                                          ),
-                                        ],
-                                      )
-                                      : ListView.separated(
-                                        physics:
-                                            const AlwaysScrollableScrollPhysics(),
-                                        itemCount: _products.length,
-                                        separatorBuilder:
-                                            (context, index) =>
-                                                const Divider(height: 24),
-                                        itemBuilder: (context, index) {
-                                          return _buildProductRow(
-                                            _products[index],
-                                          );
-                                        },
-                                      )),
-                        ),
+              // Product container with ONLY top-left curved corner
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(52),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 10,
+                        offset: Offset(0, -2),
                       ),
                     ],
                   ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Products',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Refreshable list/content
+                        Expanded(
+                          child: RefreshIndicator(
+                            color: _primary,
+                            onRefresh: _onRefresh,
+                            child:
+                                _isLoading && !_isRefreshing
+                                    ? ListView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      children: const [
+                                        SizedBox(height: 160),
+                                        Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                        SizedBox(height: 160),
+                                      ],
+                                    )
+                                    : (_products.isEmpty
+                                        ? ListView(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          children: [
+                                            const SizedBox(height: 140),
+                                            Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(
+                                                  Icons.inventory_2_outlined,
+                                                  size: 48,
+                                                  color: Colors.black26,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'No products yet.',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.black54,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 120),
+                                              ],
+                                            ),
+                                          ],
+                                        )
+                                        : ListView.separated(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          itemCount: _products.length,
+                                          separatorBuilder:
+                                              (context, index) =>
+                                                  const Divider(height: 24),
+                                          itemBuilder: (context, index) {
+                                            return _buildProductRow(
+                                              _products[index],
+                                            );
+                                          },
+                                        )),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

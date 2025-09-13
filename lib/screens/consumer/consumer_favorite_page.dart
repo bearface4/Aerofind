@@ -292,228 +292,238 @@ class _ConsumerFavoritePageState extends State<ConsumerFavoritePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              const Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: "My",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF002F6C),
+    return PopScope(
+      canPop: false, // Completely disable back navigation
+      onPopInvokedWithResult: (didPop, result) {
+        // Silently prevent back navigation - no messages
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 40),
+                const Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: "My",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF002F6C),
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: " Favorites",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                      TextSpan(
+                        text: " Favorites",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  style: TextStyle(fontSize: 24),
                 ),
-                style: TextStyle(fontSize: 24),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              if (isLoading)
-                const Expanded(
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (hasError)
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: fetchFavorites,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        const SizedBox(height: 200),
-                        const Center(
-                          child: Text(
-                            'Failed to load favorites',
-                            style: TextStyle(color: Colors.red),
+                if (isLoading)
+                  const Expanded(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (hasError)
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: fetchFavorites,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          const SizedBox(height: 200),
+                          const Center(
+                            child: Text(
+                              'Failed to load favorites',
+                              style: TextStyle(color: Colors.red),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: fetchFavorites,
-                            child: const Text('Retry'),
+                          const SizedBox(height: 8),
+                          Center(
+                            child: ElevatedButton(
+                              onPressed: fetchFavorites,
+                              child: const Text('Retry'),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              else if (favorites.isEmpty)
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: fetchFavorites,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 200),
-                        Center(child: Text('No favorites found')),
-                      ],
+                  )
+                else if (favorites.isEmpty)
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: fetchFavorites,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 200),
+                          Center(child: Text('No favorites found')),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: fetchFavorites,
-                    child: ListView.separated(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: favorites.length,
-                      separatorBuilder:
-                          (context, index) => const Divider(
-                            color: Colors.black12,
-                            thickness: 1,
-                            height: 32,
-                          ),
-                      itemBuilder: (context, index) {
-                        final fav = favorites[index];
-                        final product = fav['product'] ?? {};
-                        final seller = product['seller'] ?? {};
-                        final String storeName =
-                            (seller['store_name'] ?? '').toString();
-                        final int productId = product['id'] ?? 0;
-                        final int sellerId = seller['id'] ?? 0;
-                        final int favoriteId = fav['id'] ?? 0;
-                        final int stocks = product['stocks'] ?? 0;
-                        final bool isOutOfStock = stocks == 0;
+                  )
+                else
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: fetchFavorites,
+                      child: ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: favorites.length,
+                        separatorBuilder:
+                            (context, index) => const Divider(
+                              color: Colors.black12,
+                              thickness: 1,
+                              height: 32,
+                            ),
+                        itemBuilder: (context, index) {
+                          final fav = favorites[index];
+                          final product = fav['product'] ?? {};
+                          final seller = product['seller'] ?? {};
+                          final String storeName =
+                              (seller['store_name'] ?? '').toString();
+                          final int productId = product['id'] ?? 0;
+                          final int sellerId = seller['id'] ?? 0;
+                          final int favoriteId = fav['id'] ?? 0;
+                          final int stocks = product['stocks'] ?? 0;
+                          final bool isOutOfStock = stocks == 0;
 
-                        // Check if this specific favorite is being removed
-                        final isRemoving = _removingFavoriteId == favoriteId;
+                          // Check if this specific favorite is being removed
+                          final isRemoving = _removingFavoriteId == favoriteId;
 
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildProductImage(product, productId),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 4,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            product['name'] ?? '',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  isOutOfStock
-                                                      ? Colors.grey
-                                                      : Colors.black,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          RichText(
-                                            text: TextSpan(
-                                              text:
-                                                  storeName.isNotEmpty
-                                                      ? storeName
-                                                      : 'N/A',
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildProductImage(product, productId),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              product['name'] ?? '',
                                               style: TextStyle(
-                                                fontSize: 14,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
                                                 color:
                                                     isOutOfStock
                                                         ? Colors.grey
-                                                        : Colors.grey,
-                                                decoration:
-                                                    TextDecoration.underline,
+                                                        : Colors.black,
                                               ),
-                                              recognizer:
-                                                  TapGestureRecognizer()
-                                                    ..onTap = () {
-                                                      if (sellerId > 0) {
-                                                        _navigateToStoreView(
-                                                          sellerId,
-                                                        );
-                                                      }
-                                                    },
                                             ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            "₱ ${product['price']?.toString() ?? ''}",
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  isOutOfStock
-                                                      ? Colors.grey
-                                                      : Colors.black,
-                                            ),
-                                          ),
-                                          if (isOutOfStock)
-                                            const Padding(
-                                              padding: EdgeInsets.only(top: 4),
-                                              child: Text(
-                                                "Out of Stock",
+                                            const SizedBox(height: 4),
+                                            RichText(
+                                              text: TextSpan(
+                                                text:
+                                                    storeName.isNotEmpty
+                                                        ? storeName
+                                                        : 'N/A',
                                                 style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.red,
-                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 14,
+                                                  color:
+                                                      isOutOfStock
+                                                          ? Colors.grey
+                                                          : Colors.grey,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                ),
+                                                recognizer:
+                                                    TapGestureRecognizer()
+                                                      ..onTap = () {
+                                                        if (sellerId > 0) {
+                                                          _navigateToStoreView(
+                                                            sellerId,
+                                                          );
+                                                        }
+                                                      },
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              "₱ ${product['price']?.toString() ?? ''}",
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color:
+                                                    isOutOfStock
+                                                        ? Colors.grey
+                                                        : Colors.black,
+                                              ),
+                                            ),
+                                            if (isOutOfStock)
+                                              const Padding(
+                                                padding: EdgeInsets.only(
+                                                  top: 4,
+                                                ),
+                                                child: Text(
+                                                  "Out of Stock",
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 9),
-                                    child: GestureDetector(
-                                      onTap:
-                                          isRemoving
-                                              ? null
-                                              : () => confirmRemoveFavorite(
-                                                favoriteId,
-                                              ),
-                                      child:
-                                          isRemoving
-                                              ? const SizedBox(
-                                                width: 24,
-                                                height: 24,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Color(0xFF002F6C),
-                                                    ),
-                                              )
-                                              : const Icon(
-                                                Icons.favorite,
-                                                color: Color(0xFF002F6C),
-                                              ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 9),
+                                      child: GestureDetector(
+                                        onTap:
+                                            isRemoving
+                                                ? null
+                                                : () => confirmRemoveFavorite(
+                                                  favoriteId,
+                                                ),
+                                        child:
+                                            isRemoving
+                                                ? const SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: Color(
+                                                          0xFF002F6C,
+                                                        ),
+                                                      ),
+                                                )
+                                                : const Icon(
+                                                  Icons.favorite,
+                                                  color: Color(0xFF002F6C),
+                                                ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                      },
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

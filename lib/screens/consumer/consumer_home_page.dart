@@ -532,53 +532,59 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        _isLoading
-            ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF002363)),
-            )
-            : RefreshIndicator(
-              onRefresh: () async {
-                print('[REFRESH] Pull-to-refresh triggered');
-                _isFromPullRefresh = true;
-                await fetchProducts(
-                  storeType: _selectedCategoryTitle,
-                  availability: _selectedAvailability,
-                  forceRefresh: true,
-                );
-                await fetchCartCount();
-                _isFromPullRefresh = false;
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    _buildSearchBar(),
-                    _buildCategories(context),
-                    _buildProductGrid(context),
-                  ],
+    return PopScope(
+      canPop: false, // Completely disable back navigation
+      onPopInvokedWithResult: (didPop, result) {
+        // Silently prevent back navigation - no messages
+      },
+      child: Stack(
+        children: [
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF002363)),
+              )
+              : RefreshIndicator(
+                onRefresh: () async {
+                  print('[REFRESH] Pull-to-refresh triggered');
+                  _isFromPullRefresh = true;
+                  await fetchProducts(
+                    storeType: _selectedCategoryTitle,
+                    availability: _selectedAvailability,
+                    forceRefresh: true,
+                  );
+                  await fetchCartCount();
+                  _isFromPullRefresh = false;
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(),
+                      _buildSearchBar(),
+                      _buildCategories(context),
+                      _buildProductGrid(context),
+                    ],
+                  ),
+                ),
+              ),
+          if (!_isLoading && products.isEmpty)
+            IgnorePointer(
+              child: Center(
+                child: Text(
+                  'Product not found.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
-        if (!_isLoading && products.isEmpty)
-          IgnorePointer(
-            child: Center(
-              child: Text(
-                'Product not found.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        _buildFloatingCartButton(),
-      ],
+          _buildFloatingCartButton(),
+        ],
+      ),
     );
   }
 

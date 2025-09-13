@@ -413,65 +413,82 @@ class _SellerOrdersPageState extends State<SellerOrdersPage> {
           return idx == selectedStep;
         }).toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xfff8f8f8),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: const BackButton(color: Colors.black),
-        title: Text(
-          "Orders",
-          style: GoogleFonts.inter(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: _kActive,
+    return PopScope(
+      canPop: false, // Completely disable back navigation
+      onPopInvokedWithResult: (didPop, result) {
+        // Silently prevent back navigation - no messages
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xfff8f8f8),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          automaticallyImplyLeading: false, // Remove automatic back button
+          leadingWidth: 0, // Remove leading space
+          titleSpacing: 0, // Remove title spacing
+          title: Padding(
+            padding: const EdgeInsets.only(left: 16.0), // Control left padding
+            child: Text(
+              "Orders",
+              style: GoogleFonts.inter(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: _kActive,
+              ),
+            ),
           ),
         ),
-      ),
-      body: RefreshIndicator(
-        color: _kActive,
-        edgeOffset: 0,
-        displacement: 36,
-        onRefresh: _onRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _ArrowTabs(
-                steps: steps,
-                selectedIndex: selectedStep,
-                onTap:
-                    (i) => setState(() {
-                      debugPrint('[ORD] Tab selected: index=$i "${steps[i]}"');
-                      selectedStep = i;
-                    }),
-              ),
-              const SizedBox(height: 24),
+        body: RefreshIndicator(
+          color: _kActive,
+          edgeOffset: 0,
+          displacement: 36,
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _ArrowTabs(
+                  steps: steps,
+                  selectedIndex: selectedStep,
+                  onTap:
+                      (i) => setState(() {
+                        debugPrint(
+                          '[ORD] Tab selected: index=$i "${steps[i]}"',
+                        );
+                        selectedStep = i;
+                      }),
+                ),
+                const SizedBox(height: 24),
 
-              if (_isLoading && !_isRefreshing)
-                const Padding(
-                  padding: EdgeInsets.only(top: 120),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (filtered.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 80),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.inbox, size: 42, color: Colors.black26),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No orders for "${steps[selectedStep]}" yet.',
-                        style: GoogleFonts.inter(color: Colors.black54),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                )
-              else
-                ...filtered.map(_buildOrderCard),
-            ],
+                if (_isLoading && !_isRefreshing)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 120),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (filtered.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 80),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.inbox,
+                          size: 42,
+                          color: Colors.black26,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No orders for "${steps[selectedStep]}" yet.',
+                          style: GoogleFonts.inter(color: Colors.black54),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...filtered.map(_buildOrderCard),
+              ],
+            ),
           ),
         ),
       ),
