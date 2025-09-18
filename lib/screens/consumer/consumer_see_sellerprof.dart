@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart' as geocoding;
 
 class ConsumerSeeSellerProfilePage extends StatefulWidget {
   const ConsumerSeeSellerProfilePage({super.key});
@@ -25,6 +27,15 @@ class _ConsumerSeeSellerProfilePageState
       TextEditingController();
   final TextEditingController _avgRatingController = TextEditingController();
   final TextEditingController _ratingCountController = TextEditingController();
+
+  // Google Maps related variables
+  late GoogleMapController _mapController;
+  LatLng _businessLocation = const LatLng(
+    14.5547,
+    121.0194,
+  ); // Default to Manila
+  final Set<Marker> _markers = {};
+  bool _mapInitialized = false;
 
   bool _isLoading = true;
   String? _profileImageUrl;
@@ -165,6 +176,7 @@ class _ConsumerSeeSellerProfilePageState
           '[SELLER_PROFILE] Average rating: ${data['average_rating']}',
         );
         debugPrint('[SELLER_PROFILE] Rating count: ${data['rating_count']}');
+        debugPrint('[SELLER_PROFILE] Business address: ${data['address']}');
         debugPrint(
           '[SELLER_PROFILE] Has profile image: ${data['profile_image_url'] != null && data['profile_image_url'].toString().isNotEmpty}',
         );
@@ -193,6 +205,9 @@ class _ConsumerSeeSellerProfilePageState
           _requirementsFileUrl = data['requirements_file_url']?.toString();
           _isLoading = false;
         });
+
+        // Geocode the business address to get coordinates
+        await _geocodeBusinessAddress(_addressController.text);
 
         debugPrint('[SELLER_PROFILE] UI state updated successfully');
         debugPrint(
@@ -257,6 +272,145 @@ class _ConsumerSeeSellerProfilePageState
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _geocodeBusinessAddress(String address) async {
+    if (address.trim().isEmpty) {
+      debugPrint('[SELLER_PROFILE] Address is empty, using default location');
+      setState(() {
+        _markers.clear();
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('no_address'),
+            position: _businessLocation,
+            infoWindow: const InfoWindow(
+              title: 'Location Unavailable',
+              snippet: 'No business address provided',
+            ),
+            icon: BitmapDescriptor.defaultMarker, // Use default grey marker
+          ),
+        );
+      });
+      return;
+    }
+
+    try {
+      debugPrint('[SELLER_PROFILE] Geocoding business address: "$address"');
+      List<geocoding.Location> locations = await geocoding.locationFromAddress(
+        address,
+      );
+      if (locations.isNotEmpty) {
+        final location = locations.first;
+        final newBusinessLocation = LatLng(
+          location.latitude,
+          location.longitude,
+        );
+
+        debugPrint(
+          '[SELLER_PROFILE] Geocoded coordinates: ${location.latitude}, ${location.longitude}',
+        );
+
+        setState(() {
+          _businessLocation = newBusinessLocation;
+          _markers.clear();
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('business_location'),
+              position: _businessLocation,
+              infoWindow: InfoWindow(
+                title: _storeNameController.text,
+                snippet: 'Business Location',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueRed,
+              ),
+            ),
+          );
+        });
+
+        // Move camera to the business location if map is ready
+        if (_mapInitialized) {
+          _mapController.animateCamera(
+            CameraUpdate.newLatLngZoom(_businessLocation, 16),
+          );
+        }
+      } else {
+        debugPrint(
+          '[SELLER_PROFILE] Geocoding returned 0 results for address: $address',
+        );
+        // Address not found - show warning marker at default location
+        setState(() {
+          _markers.clear();
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('location_not_found'),
+              position: _businessLocation, // Default Manila location
+              infoWindow: const InfoWindow(
+                title: 'Location Not Found',
+                snippet: 'Could not locate this address on map',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueOrange,
+              ),
+            ),
+          );
+        });
+
+        // Show location not found message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location not found.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[SELLER_PROFILE] Geocoding error: $e');
+      // Network or other error - show error marker
+      setState(() {
+        _markers.clear();
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('geocoding_error'),
+            position: _businessLocation, // Default Manila location
+            infoWindow: const InfoWindow(
+              title: 'Location Error',
+              snippet: 'Unable to load location',
+            ),
+            icon: BitmapDescriptor.defaultMarker, // Use default grey marker
+          ),
+        );
+      });
+
+      // Show network error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to load business location. Please check your internet connection.',
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    _mapInitialized = true;
+    debugPrint('[SELLER_PROFILE] Google Map initialized');
+
+    // Move camera to business location
+    if (_markers.isNotEmpty) {
+      _mapController.animateCamera(
+        CameraUpdate.newLatLngZoom(_businessLocation, 16),
+      );
     }
   }
 
@@ -495,12 +649,8 @@ class _ConsumerSeeSellerProfilePageState
           ),
           const SizedBox(height: 16),
 
-          // Address
-          _buildReadOnlyTextField(
-            label: "Business Address",
-            controller: _addressController,
-            icon: Icons.location_on_outlined,
-          ),
+          // Business Address Map Section
+          _buildBusinessLocationMap(),
           const SizedBox(height: 16),
 
           // Delivery Fee
@@ -523,6 +673,84 @@ class _ConsumerSeeSellerProfilePageState
           _buildRequirementsFileField(),
         ],
       ),
+    );
+  }
+
+  Widget _buildBusinessLocationMap() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Business Location",
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Address text
+        if (_addressController.text.trim().isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  color: Colors.grey.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _addressController.text,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 8),
+
+        // Google Map with enhanced gestures
+        Container(
+          height: 200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300, width: 1),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: GoogleMap(
+            onMapCreated: _onMapCreated,
+            initialCameraPosition: CameraPosition(
+              target: _businessLocation,
+              zoom: 16,
+            ),
+            markers: _markers,
+            // Enhanced gesture controls for better user interaction
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: true, // Enable zoom controls (+/- buttons)
+            mapToolbarEnabled: false,
+            compassEnabled: true, // Enable compass
+            rotateGesturesEnabled: true, // Enable rotation with two fingers
+            scrollGesturesEnabled: true, // Enable panning/dragging
+            zoomGesturesEnabled: true, // Enable pinch-to-zoom
+            tiltGesturesEnabled: true, // Enable tilting gestures
+            // Set reasonable zoom limits
+            minMaxZoomPreference: const MinMaxZoomPreference(8.0, 20.0),
+          ),
+        ),
+      ],
     );
   }
 
