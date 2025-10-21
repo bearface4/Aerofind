@@ -28,6 +28,7 @@ import '../screens/consumer/consumer_report_sub.dart';
 import '../screens/seller/seller_update_product.dart';
 import '../screens/seller/seller_see_customerprof.dart';
 import '../screens/consumer/consumer_see_sellerprof.dart';
+import '../screens/consumer/consumer_see_seller_loc.dart';
 
 class AppRoutes {
   // Route name constants
@@ -60,6 +61,7 @@ class AppRoutes {
   static const String sellerupdateproduct = '/sellerupdateproduct';
   static const String seecustomerprof = '/seecustomerprof';
   static const String seesellerprof = '/seesellerprof';
+  static const String seesellerloc = '/seesellerloc';
 
   // Route map
   static final Map<String, WidgetBuilder> routes = {
@@ -92,5 +94,6 @@ class AppRoutes {
     sellerupdateproduct: (context) => SellerUpdateProductPage(),
     seecustomerprof: (context) => CustomerProfilePage(),
     seesellerprof: (context) => ConsumerSeeSellerProfilePage(),
+    seesellerloc: (context) => ConsumerSeeSellerLocationPage(),
   };
 }
