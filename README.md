@@ -4,14 +4,14 @@
 
 ---
 
-🧠 **Tech Stack**  
+**Tech Stack**  
 Flutter — Frontend framework for cross-platform mobile development  
 FastAPI — High-performance Python backend for REST APIs  
 Supabase — Backend-as-a-service for database, authentication, and storage
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 Follow these steps to clone and run the Flutter app locally.
 
