@@ -16,15 +16,15 @@ Supabase — Backend-as-a-service for database, authentication, and storage
 Follow these steps to clone and run the Flutter app locally.
 
 ```bash
-# 1️⃣ Clone the Repository
+# Clone the Repository
 git clone https://github.com/rexgama/aerofind-mobile-app.git
 cd aerofind-mobile-app
 
-# 2️⃣ Install Dependencies
+# Install Dependencies
 # Make sure you have Flutter installed on your system.
 flutter pub get
 
-# 3️⃣ Run the App
+# Run the App
 # Connect your device or start an emulator, then run:
 flutter run
 ```
