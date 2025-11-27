@@ -17,7 +17,7 @@ Follow these steps to clone and run the Flutter app locally.
 
 ```bash
 # Clone the Repository
-git clone https://github.com/rexgama/aerofind-mobile-app.git
+git clone https://github.com/bearface4/Aerofind.git
 cd aerofind-mobile-app
 
 # Install Dependencies
